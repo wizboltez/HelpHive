@@ -346,9 +346,3 @@ HelpHive is a web platform that connects **customers with domestic service provi
 **Register → Login → Create Profile → Add Service → Set Availability → Receive Booking → Accept/Reject → Complete Service → Receive Review**
 
 ---
-
-# 🏁 FINAL GOAL
-
-By the end of **5 weeks**, HelpHive should be a **fully functional React + Node/Express + MongoDB application**, with the frontend completely developed by **Anannya** and the backend completely developed by **Vaidehi + Anushka**.
-
-**Build → Integrate → Test → Deploy 🚀**
