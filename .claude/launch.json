@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "helphive-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 8080
+    },
+    {
+      "name": "helphive-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "backend", "run", "dev"],
+      "port": 4000
+    }
+  ]
+}

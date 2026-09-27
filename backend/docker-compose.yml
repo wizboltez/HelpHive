@@ -1,0 +1,16 @@
+# Optional: a real PostgreSQL server. Run `docker compose up -d`, then set
+# DATABASE_URL=postgres://helphive:helphive@localhost:5432/helphive in .env
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: helphive
+      POSTGRES_PASSWORD: helphive
+      POSTGRES_DB: helphive
+    ports:
+      - "5432:5432"
+    volumes:
+      - helphive-data:/var/lib/postgresql/data
+
+volumes:
+  helphive-data:

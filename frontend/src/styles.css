@@ -1,0 +1,126 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * HelpHive design system — "Ledger warmth".
+ * Warm paper background, ink text, terracotta accent, ledger status colors.
+ * All colors are oklch semantic tokens. Never hardcode colors in components.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --font-display: var(--font-display-family);
+  --font-body: var(--font-body-family);
+  --font-mono: var(--font-mono-family);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-available: var(--available);
+  --color-available-soft: var(--available-soft);
+  --color-booked: var(--booked);
+  --color-booked-soft: var(--booked-soft);
+  --color-leave: var(--leave);
+  --color-leave-soft: var(--leave-soft);
+  --color-absent: var(--absent);
+  --color-absent-soft: var(--absent-soft);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --font-display-family: "Fraunces", serif;
+  --font-body-family: "Inter", sans-serif;
+  --font-mono-family: "JetBrains Mono", monospace;
+
+  --paper: oklch(0.968 0.018 85);
+  --ink: oklch(0.245 0.017 45);
+  --ink-soft: oklch(0.478 0.02 45);
+  --line: oklch(0.245 0.017 45 / 0.12);
+  --accent: oklch(0.55 0.16 35);
+  --accent-soft: oklch(0.93 0.04 65);
+  --accent-foreground: oklch(0.968 0.018 85);
+  --available: oklch(0.46 0.09 155);
+  --available-soft: oklch(0.94 0.03 155);
+  --booked: oklch(0.62 0.14 70);
+  --booked-soft: oklch(0.93 0.05 80);
+  --leave: oklch(0.53 0.02 250);
+  --leave-soft: oklch(0.93 0.008 250);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--ink);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: var(--accent-soft);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.945 0.014 85);
+  --muted-foreground: var(--ink-soft);
+  --destructive: oklch(0.55 0.19 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility settle {
+  animation: settle 500ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-body-family);
+    -webkit-font-smoothing: antialiased;
+  }
+}
