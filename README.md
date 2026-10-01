@@ -10,6 +10,26 @@ HelpHive/
   backend/    the API: Node + Express + PostgreSQL (full feature guide in backend/README.md)
 ```
 
+## Tech stack
+
+- **Frontend:** React 19, TanStack Start, TanStack Router, Vite, TypeScript, and Tailwind CSS
+- **UI and interaction:** Radix UI primitives, Lucide icons, React Hook Form, date-fns, Recharts, and Sonner notifications
+- **Backend:** Node.js 22+, TypeScript, Express 5, REST API routes, raw SQL migrations, and shared service modules
+- **Validation and security:** Zod validation, JWT authentication, bcrypt password hashing, Helmet security headers, CORS, and express-rate-limit
+- **Database:** PostgreSQL in production or shared environments, with PGlite providing a local file-backed PostgreSQL database
+- **File handling:** Multer for profile photos and verification documents, stored locally under `backend/.data/uploads`
+- **Development and deployment:** Docker Compose for PostgreSQL, environment-based configuration, Vite API proxying, and Cloudflare Tunnel support for remote testing
+- **Testing and quality:** Vitest and Supertest for backend tests, TypeScript typechecking, ESLint, and Prettier
+
+### Built-in capabilities
+
+- Role-based accounts for residents, domestic helpers, and administrators
+- Helper onboarding, document uploads, profile verification, profile-change approvals, and availability management
+- Helper search with service, rating, availability, and schedule filters
+- One-time, weekly, and monthly bookings with price quotes, cancellation rules, and double-booking protection
+- Door-code check-in and check-out with attendance calendars, leave tracking, and visit status history
+- In-app notifications, reviews, earnings tracking, complaints, building management, and admin dashboards
+
 ## Run it locally
 
 You need **Node.js 22 or newer** (check with `node --version`). Use two terminals.
