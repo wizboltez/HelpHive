@@ -140,7 +140,7 @@ function AccountMenu({ me, minimal }: { me: User; minimal?: boolean | undefined 
   const { signOut } = useSession();
   const go = (to: string) => navigate({ to });
 
-  const item = "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm focus:bg-paper";
+  const item = "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-ink focus:bg-paper focus:text-ink";
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -149,7 +149,7 @@ function AccountMenu({ me, minimal }: { me: User; minimal?: boolean | undefined 
       >
         <Avatar name={me.name} photoUrl={me.photoUrl} className="size-10 rounded-full text-sm" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 rounded-2xl border-line bg-card p-1.5">
+      <DropdownMenuContent align="end" className="w-64 rounded-2xl border-line bg-card p-1.5 text-ink">
         <DropdownMenuLabel className="px-2.5 py-2 font-normal">
           <p className="font-medium text-ink">{me.name}</p>
           <p className="truncate text-xs text-ink-soft">{me.email}</p>
@@ -184,7 +184,7 @@ function AccountMenu({ me, minimal }: { me: User; minimal?: boolean | undefined 
           <FileText className="size-4 text-ink-soft" /> Terms of service
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-line" />
-        <DropdownMenuItem className={`${item} text-absent`} onSelect={signOut}>
+        <DropdownMenuItem className={`${item} text-absent focus:text-absent`} onSelect={signOut}>
           <LogOut className="size-4" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

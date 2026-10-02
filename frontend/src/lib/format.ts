@@ -44,6 +44,17 @@ export function daysLabel(days: string[]) {
   return consecutive ? `${sorted[0]}–${sorted[sorted.length - 1]}` : sorted.join(", ");
 }
 
+/** Working hours → "Mon–Sat · 8:00 AM – 6:00 PM" */
+export const workHoursLabel = (h: { workDays: string[]; workStart: string; workEnd: string }) =>
+  `${daysLabel(h.workDays)} · ${time12(h.workStart)} – ${time12(h.workEnd)}`;
+
+/** "2026-10-06" shifted by whole days. */
+export function shiftDate(date: string, days: number) {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export const planLabel: Record<Plan, string> = { one_time: "One-time", weekly: "Weekly", monthly: "Monthly" };
 
 export const initials = (name: string) =>

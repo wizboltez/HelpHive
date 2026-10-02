@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check } from "lucide-react";
+import { ArrowRight, Bell, Check, PencilLine, ToggleRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DetailsForm, DocumentUploader, PhotoUploader, ServicesEditor } from "@/components/HelperForms";
 import { Loading, ui } from "@/components/Page";
+import { VerificationStatus } from "@/components/VerificationStatus";
 import { api } from "@/lib/api";
 import { useAction, useApi } from "@/lib/hooks";
 import type { WorkerProfile } from "@/lib/types";
@@ -30,14 +31,29 @@ function Onboarding() {
   const queryClient = useQueryClient();
   const { data: profile } = useApi<WorkerProfile>("/worker/profile");
   const [step, setStep] = useState(0);
+  // Set once the helper finishes, so we show the "submitted" screen instead of bouncing to the dashboard.
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    if (profile?.onboarded) navigate({ to: "/worker", replace: true });
-  }, [profile, navigate]);
+    if (profile?.onboarded && !submitted) navigate({ to: "/worker", replace: true });
+  }, [profile, submitted, navigate]);
 
-  const finish = useAction(() => api("/worker/onboarding/complete", { method: "POST" }), "All set! The admin will verify your profile soon.");
+  const finish = useAction(() => api("/worker/onboarding/complete", { method: "POST" }));
 
   if (!profile) return <Loading />;
+  if (submitted) {
+    return (
+      <Submitted
+        name={profile.name}
+        verification={profile.verification}
+        onContinue={async () => {
+          // Make sure the app knows onboarding is done before leaving, or it would send us back here.
+          await queryClient.refetchQueries({ queryKey: ["me"] });
+          navigate({ to: "/worker", replace: true });
+        }}
+      />
+    );
+  }
   const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
 
   return (
@@ -97,9 +113,9 @@ function Onboarding() {
               <button
                 onClick={() =>
                   finish.mutate(undefined, {
-                    onSuccess: async () => {
-                      await queryClient.invalidateQueries({ queryKey: ["me"] });
-                      navigate({ to: "/worker", replace: true });
+                    onSuccess: () => {
+                      setSubmitted(true);
+                      window.scrollTo({ top: 0 });
                     },
                   })
                 }
@@ -113,6 +129,67 @@ function Onboarding() {
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Shown right after the last onboarding step: what happens next, then on to the dashboard. */
+function Submitted({ name, verification, onContinue }: { name: string; verification: WorkerProfile["verification"]; onContinue: () => Promise<void> }) {
+  const [leaving, setLeaving] = useState(false);
+  const firstName = name.trim().split(/\s+/)[0] ?? "";
+  const live = verification === "verified";
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <span className="flex size-12 items-center justify-center rounded-full bg-available text-paper">
+        <Check className="size-6" />
+      </span>
+      <p className="mt-6 font-mono text-xs uppercase tracking-widest text-ink-soft">Profile {live ? "complete" : "submitted"}</p>
+      <h1 className="mt-2 text-balance font-display text-4xl font-bold tracking-tight">
+        {live ? `You're live, ${firstName}.` : `Thanks, ${firstName}. You're nearly there.`}
+      </h1>
+      <p className="mt-3 max-w-[52ch] text-pretty text-ink-soft">
+        {live
+          ? "Your profile is already verified, so residents can find and book you right away."
+          : "The society admin will check your ID documents. Until then your profile stays hidden from residents."}
+      </p>
+
+      <section className={`${ui.card} mt-8`}>
+        <p className={`${ui.eyebrow} mb-4`}>What happens next</p>
+        <VerificationStatus status={verification} />
+      </section>
+
+      {!live && (
+        <section className="mt-6">
+          <p className={`${ui.eyebrow} mb-3`}>While you wait</p>
+          <ul className="space-y-2 text-sm">
+            <li className={`${ui.row} flex items-start gap-3`}>
+              <Bell className="mt-0.5 size-4 shrink-0 text-ink-soft" />
+              <span>We'll send you an alert the moment the admin approves you, so there's nothing to check.</span>
+            </li>
+            <li className={`${ui.row} flex items-start gap-3`}>
+              <PencilLine className="mt-0.5 size-4 shrink-0 text-ink-soft" />
+              <span>You can still change your details, services and photo from your profile.</span>
+            </li>
+            <li className={`${ui.row} flex items-start gap-3`}>
+              <ToggleRight className="mt-0.5 size-4 shrink-0 text-ink-soft" />
+              <span>Your dashboard shows this status until you're verified.</span>
+            </li>
+          </ul>
+        </section>
+      )}
+
+      <button
+        onClick={() => {
+          setLeaving(true);
+          onContinue().catch(() => setLeaving(false));
+        }}
+        disabled={leaving}
+        className={`${ui.primaryButton} mt-8 inline-flex items-center gap-2`}
+      >
+        {leaving ? "Opening…" : "Go to my dashboard"}
+        <ArrowRight className="size-4" />
+      </button>
     </div>
   );
 }

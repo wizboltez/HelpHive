@@ -77,6 +77,8 @@
   --booked-soft: oklch(0.93 0.05 80);
   --leave: oklch(0.53 0.02 250);
   --leave-soft: oklch(0.93 0.008 250);
+  --absent: oklch(0.55 0.19 25);
+  --absent-soft: oklch(0.94 0.04 25);
 
   --background: var(--paper);
   --foreground: var(--ink);

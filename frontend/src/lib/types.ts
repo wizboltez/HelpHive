@@ -26,7 +26,10 @@ export type Meta = { buildings: string[]; categories: string[]; emailDomains: st
 
 export type Service = { id: string; label: string; price: number; unit: "visit" | "event"; isAvailable: boolean };
 
-export type Helper = {
+/** Regular working hours, e.g. Mon–Sat 08:00–18:00. */
+export type WorkHours = { workDays: string[]; workStart: string; workEnd: string };
+
+export type Helper = WorkHours & {
   id: string;
   slug: string;
   name: string;
@@ -132,9 +135,22 @@ export type ProfileChange = {
   reviewedAt: string | null;
 };
 
+/** One week of a helper's schedule. Other residents' slots are labelled just "Booked". */
+export type Schedule = WorkHours & {
+  from: string;
+  to: string;
+  days: {
+    date: string;
+    weekday: string;
+    working: boolean;
+    onLeave: boolean;
+    slots: { startTime: string; endTime: string; status: "confirmed" | "pending"; label: string }[];
+  }[];
+};
+
 export type HelperDocument = { id: string; docType: string; docLabel: string | null; mimeType: string; createdAt: string };
 
-export type WorkerProfile = {
+export type WorkerProfile = WorkHours & {
   name: string;
   slug: string;
   categories: string[];

@@ -82,7 +82,13 @@ export async function hasClash(db: Db, helperId: string, slot: Slot, ignoreBooki
   return rows.length > 0;
 }
 
-export const newDoorCode = () => randomInt(0, 10_000).toString().padStart(4, "0");
+/** A random 4-digit code, never the same as `previous` (so a used code can't come straight back). */
+export function newDoorCode(previous?: string) {
+  let code: string;
+  do code = randomInt(0, 10_000).toString().padStart(4, "0");
+  while (code === previous);
+  return code;
+}
 
 /** Gets the visit row for a booking on a date, creating it (with a fresh door code) if needed. */
 export async function openVisit(db: Db, bookingId: string, date: string) {

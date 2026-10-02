@@ -44,7 +44,7 @@ export function OtpCard({ visit }: { visit: Visit }) {
           {stage === "done"
             ? "In and out both verified — attendance marked present."
             : stage === "inside"
-              ? `Ask ${visit.resident.name} for the code again when your work is done.`
+              ? `When your work is done, ask ${visit.resident.name} for the new leaving code. The arrival code won't work again.`
               : `Ask ${visit.resident.name} for today's door code to start your hours.`}
         </p>
 

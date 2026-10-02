@@ -31,7 +31,7 @@ export function DoorCode({ visit }: { visit: Visit }) {
       </div>
       <div className="mt-4 flex items-center gap-4">
         <div>
-          <p className={ui.eyebrow}>Today's door code</p>
+          <p className={ui.eyebrow}>{visit.state === "inside" ? "Code for leaving" : visit.state === "done" ? "Door code" : "Code for arriving"}</p>
           <p className="font-display text-4xl font-bold tracking-[0.3em]">{visit.state === "done" ? "····" : visit.doorCode}</p>
         </div>
         <div className="ml-auto text-right text-sm">
@@ -46,7 +46,11 @@ export function DoorCode({ visit }: { visit: Visit }) {
         </div>
       </div>
       <p className="mt-3 text-xs text-ink-soft">
-        Read this out when {visit.helper.name.split(" ")[0]} arrives and again when they leave. Only the helper enters it.
+        {visit.state === "inside"
+          ? `Read this new code out when ${visit.helper.name.split(" ")[0]} leaves. The arrival code no longer works.`
+          : visit.state === "done"
+            ? "Both codes have been used. Nothing more to do today."
+            : `Read this out when ${visit.helper.name.split(" ")[0]} arrives. Each code works only once — a new one appears for when they leave.`}
       </p>
     </div>
   );

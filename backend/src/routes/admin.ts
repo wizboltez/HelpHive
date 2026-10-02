@@ -11,6 +11,8 @@ import { BOOKING_SELECT, refreshStatuses, type Booking } from "../services/booki
 import { COMPLAINT_FIELDS } from "./complaints.js";
 
 /** FR-09: admin dashboard — verify helpers, watch bookings and attendance, handle complaints. */
+const buildingSchema = z.object({ name: z.string().trim().min(1).max(60) });
+
 export function adminRoutes(db: Db) {
   const router = Router();
 
@@ -126,10 +128,31 @@ export function adminRoutes(db: Db) {
 
   // Buildings residents and helpers choose from at sign-up.
   router.post("/buildings", async (req, res) => {
-    const { name } = parse(z.object({ name: z.string().trim().min(1).max(60) }), req.body);
+    const { name } = parse(buildingSchema, req.body);
     const added = await db.query("INSERT INTO buildings (name) VALUES ($1) ON CONFLICT DO NOTHING RETURNING name", [name]);
     if (!added.length) throw conflict("That building already exists");
     res.status(201).json({ name });
+  });
+
+  // Rename a building. People in it follow automatically (ON UPDATE CASCADE);
+  // the flat label saved on their bookings ("Tower A · 402") is updated to match.
+  router.patch("/buildings/:name", async (req, res) => {
+    const oldName = req.params.name;
+    const { name } = parse(buildingSchema, req.body);
+    if (name === oldName) return res.json({ name });
+
+    await db.transaction(async (tx) => {
+      const taken = await tx.query("SELECT 1 FROM buildings WHERE name = $1", [name]);
+      if (taken.length) throw conflict("That building already exists");
+      const renamed = await tx.query("UPDATE buildings SET name = $2 WHERE name = $1 RETURNING name", [oldName, name]);
+      if (!renamed.length) throw notFound("Building");
+      await tx.query(
+        `UPDATE bookings SET flat = $2 || substr(flat, length($1) + 1)
+         WHERE flat = $1 OR left(flat, length($1) + 3) = $1 || ' · '`,
+        [oldName, name],
+      );
+    });
+    res.json({ name });
   });
 
   router.delete("/buildings/:name", async (req, res) => {

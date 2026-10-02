@@ -3,6 +3,8 @@ import { AppShell } from "@/components/AppShell";
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { Empty, Loading, ui } from "@/components/Page";
 import { OtpCard } from "@/components/OtpCard";
+import { VerificationStatus } from "@/components/VerificationStatus";
+import { WeeklySchedule } from "@/components/WeeklySchedule";
 import { api } from "@/lib/api";
 import { daysLabel, planLabel, rupees, thisWeek, time12 } from "@/lib/format";
 import { useAction, useApi, useMe } from "@/lib/hooks";
@@ -31,20 +33,14 @@ function WorkerDashboard() {
 
   return (
     <>
-      {me?.verification === "pending" && (
-        <div className="mb-8 max-w-2xl rounded-2xl bg-booked-soft p-4 text-sm text-booked ring-1 ring-booked/30">
-          Your profile is with the society admin for verification. Residents will be able to find and book you once
-          you're verified — we'll send you an alert.
-        </div>
-      )}
-      {me?.verification === "rejected" && (
-        <div className="mb-8 max-w-2xl rounded-2xl bg-absent-soft p-4 text-sm text-absent ring-1 ring-absent/30">
-          Your verification was not approved.{" "}
-          <Link to="/worker/profile" className="font-medium underline">
-            See the admin's note and upload new documents
-          </Link>
-          .
-        </div>
+      {(me?.verification === "pending" || me?.verification === "rejected") && (
+        <section className={`${ui.card} mb-8 max-w-2xl`}>
+          <p className={ui.eyebrow}>Your verification</p>
+          <h2 className="mb-4 mt-1 font-display text-xl font-semibold tracking-tight">
+            {me.verification === "pending" ? "Waiting for the society admin" : "Your documents need another look"}
+          </h2>
+          <VerificationStatus status={me.verification} />
+        </section>
       )}
 
       <section className="max-w-2xl">
@@ -98,6 +94,12 @@ function WorkerDashboard() {
           </Link>
         </div>
       </section>
+
+      {me && (
+        <section className="mt-12">
+          <WeeklySchedule helperId={me.id} title="My week" />
+        </section>
+      )}
 
       <section className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
         {me && <AttendanceCalendar helpers={[{ id: me.id, name: me.name }]} />}

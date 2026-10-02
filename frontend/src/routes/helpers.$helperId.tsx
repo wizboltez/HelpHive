@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -6,8 +6,9 @@ import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { Avatar, Empty, ErrorNote, Loading, ui } from "@/components/Page";
 import { CategoryChips } from "@/components/Fields";
 import { StatusChip } from "@/components/StatusChip";
+import { WeeklySchedule } from "@/components/WeeklySchedule";
 import { api } from "@/lib/api";
-import { dateLabel, daysLabel, localDate, rupees, time12, WEEK } from "@/lib/format";
+import { dateLabel, daysLabel, localDate, rupees, time12, WEEK, workHoursLabel } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
 import type { HelperProfile as Profile, Plan, Quote } from "@/lib/types";
 
@@ -55,6 +56,10 @@ function HelperProfile() {
                     {helper.hoursLast30Days} h worked in the last 30 days
                   </span>
                 </div>
+                <p className="mt-2 text-sm">
+                  <span className={ui.eyebrow}>Working hours</span>{" "}
+                  <span className="font-medium">{workHoursLabel(helper)}</span>
+                </p>
                 {helper.nextLeave && (
                   <p className="mt-2 text-xs text-leave">
                     On leave {dateLabel(helper.nextLeave.startDate)} – {dateLabel(helper.nextLeave.endDate)}
@@ -115,6 +120,7 @@ function HelperProfile() {
             </div>
           </div>
 
+          <WeeklySchedule helperId={helper.id} title="Weekly schedule" />
           <AttendanceCalendar helpers={[helper]} />
         </div>
 
@@ -126,14 +132,24 @@ function HelperProfile() {
   );
 }
 
+/** "08:00" + 2 → "10:00" */
+const addHours = (time: string, hours: number) => `${String(Number(time.slice(0, 2)) + hours).padStart(2, "0")}${time.slice(2)}`;
+
+/** The helper's weekdays (Mon–Fri), or all their days if they only work weekends. */
+function defaultDays(workDays: string[]): string[] {
+  const weekdays = WEEK.filter((d) => workDays.includes(d) && d !== "Sat" && d !== "Sun");
+  return weekdays.length ? weekdays : WEEK.filter((d) => workDays.includes(d));
+}
+
 function BookingForm({ helper }: { helper: Profile }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     plan: "weekly" as Plan,
     startDate: localDate(1),
-    days: ["Mon", "Tue", "Wed", "Thu", "Fri"] as string[],
-    startTime: "08:00",
-    endTime: "10:00",
+    // Start inside the helper's working hours: their first two hours, on their weekdays.
+    days: defaultDays(helper.workDays),
+    startTime: helper.workStart,
+    endTime: helper.workEnd < addHours(helper.workStart, 2) ? helper.workEnd : addHours(helper.workStart, 2),
     serviceIds: [] as string[],
     notes: "",
   });
@@ -141,10 +157,13 @@ function BookingForm({ helper }: { helper: Profile }) {
   const toggle = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
   const body = { helperId: helper.id, ...form, days: form.plan === "one_time" ? undefined : form.days };
-  // Live price from the server, recalculated whenever the form changes.
+  // Live price from the server, recalculated whenever a priced field changes. The note
+  // doesn't affect price, and the previous quote stays on screen while the next one loads.
+  const { notes: _notes, ...priced } = body;
   const quote = useQuery({
-    queryKey: ["quote", body],
-    queryFn: () => api<Quote>("/bookings/quote", { method: "POST", body }),
+    queryKey: ["quote", priced],
+    queryFn: () => api<Quote>("/bookings/quote", { method: "POST", body: priced }),
+    placeholderData: keepPreviousData,
     retry: false,
   });
   const quoteData = quote.data;
@@ -189,8 +208,10 @@ function BookingForm({ helper }: { helper: Profile }) {
               <button
                 type="button"
                 key={day}
+                disabled={!helper.workDays.includes(day)}
+                title={helper.workDays.includes(day) ? undefined : "Day off"}
                 onClick={() => set("days", toggle(form.days, day))}
-                className={`rounded-lg py-1.5 text-xs ring-1 ${
+                className={`rounded-lg py-1.5 text-xs ring-1 disabled:cursor-not-allowed disabled:opacity-30 disabled:line-through ${
                   form.days.includes(day) ? "bg-ink text-paper ring-ink" : "bg-paper text-ink-soft ring-line"
                 }`}
               >
@@ -204,13 +225,16 @@ function BookingForm({ helper }: { helper: Profile }) {
       <div className="mt-3 grid grid-cols-2 gap-2">
         <label>
           <span className={ui.eyebrow}>From</span>
-          <input type="time" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} className={ui.field} />
+          <input type="time" min={helper.workStart} max={helper.workEnd} value={form.startTime} onChange={(e) => set("startTime", e.target.value)} className={ui.field} />
         </label>
         <label>
           <span className={ui.eyebrow}>To</span>
-          <input type="time" value={form.endTime} onChange={(e) => set("endTime", e.target.value)} className={ui.field} />
+          <input type="time" min={helper.workStart} max={helper.workEnd} value={form.endTime} onChange={(e) => set("endTime", e.target.value)} className={ui.field} />
         </label>
       </div>
+      <p className="mt-1.5 text-[11px] text-ink-soft">
+        Works {time12(helper.workStart)} – {time12(helper.workEnd)}. Check the weekly schedule for free slots.
+      </p>
 
       {helper.services.some((s) => s.isAvailable) && (
         <div className="mt-3 space-y-1.5">

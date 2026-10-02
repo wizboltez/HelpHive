@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { rupees } from "@/lib/format";
+import { Clock } from "lucide-react";
+import { rupees, workHoursLabel } from "@/lib/format";
 import type { Helper } from "@/lib/types";
 import { CategoryChips } from "./Fields";
 import { Avatar } from "./Page";
@@ -34,6 +35,9 @@ export function HelperCard({ helper, delay = 0 }: { helper: Helper; delay?: numb
       <div className="mt-3">
         <CategoryChips categories={helper.categories} limit={3} />
       </div>
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-soft">
+        <Clock className="size-3" /> {workHoursLabel(helper)}
+      </p>
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs text-ink-soft">
         <span className="font-mono">
           {rupees(helper.ratePerVisit)}/visit{helper.area && ` · ${helper.area}`}

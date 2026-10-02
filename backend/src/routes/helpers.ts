@@ -3,8 +3,9 @@ import { z } from "zod";
 import type { Db } from "../db/db.js";
 import { me } from "../lib/auth.js";
 import { addDays, monthRange, today, WEEKDAYS } from "../lib/dates.js";
-import { clockTime, notFound, parse, uuid } from "../lib/http.js";
+import { clockTime, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { attendance } from "../services/attendance.js";
+import { weekSchedule, weekStart, WORK_HOURS_FIELDS } from "../services/schedule.js";
 
 /**
  * Helper cards with rating and live status. $1 must be today's date.
@@ -13,7 +14,7 @@ import { attendance } from "../services/attendance.js";
 const HELPER_SELECT = `
   SELECT u.id, h.slug, u.name, h.categories, h.summary, u.building AS area,
          '/uploads/photos/' || h.photo_file AS "photoUrl",
-         h.rate_per_visit AS "ratePerVisit", h.verification,
+         h.rate_per_visit AS "ratePerVisit", h.verification, ${WORK_HOURS_FIELDS},
          coalesce(r.rating, 0) AS rating, coalesce(r.count, 0) AS "reviewCount",
          CASE WHEN l.on_leave THEN 'leave' WHEN h.is_accepting THEN 'available' ELSE 'booked' END AS status
   FROM helpers h
@@ -31,9 +32,10 @@ const searchSchema = z.object({
   q: z.string().trim().optional(),
   service: z.string().trim().optional(),
   category: z.string().trim().optional(),
+  building: z.string().trim().optional(),
   minRating: z.coerce.number().min(0).max(5).optional(),
   status: z.enum(["available", "booked", "leave"]).optional(),
-  // "free on Mon at 08:00" — excludes helpers already booked then
+  // "free on Mon at 08:00" — excludes helpers not working or already booked then
   day: z.enum(WEEKDAYS).optional(),
   time: clockTime.optional(),
 });
@@ -58,9 +60,12 @@ export function helperRoutes(db: Db) {
         WHERE s.helper_id = helper.id AND s.is_available AND s.label ILIKE ${param(`%${filters.service}%`)})`);
     }
     if (filters.category) where.push(`${param(filters.category)} = ANY(categories)`);
+    if (filters.building) where.push(`area = ${param(filters.building)}`);
     if (filters.minRating !== undefined) where.push(`rating >= ${param(filters.minRating)}`);
     if (filters.status) where.push(`status = ${param(filters.status)}`);
     if (filters.day && filters.time) {
+      where.push(`${param(filters.day)} = ANY("workDays")`);
+      where.push(`"workStart" <= ${param(filters.time)} AND "workEnd" > ${param(filters.time)}`);
       where.push(`NOT EXISTS (SELECT 1 FROM bookings b
         WHERE b.helper_id = helper.id AND b.status = 'confirmed' AND b.end_date >= $1
           AND ${param(filters.day)} = ANY(b.days)
@@ -134,6 +139,18 @@ export function helperRoutes(db: Db) {
     );
     const { from, to } = monthRange(month);
     res.json({ helperId: id, month, ...(await attendance(db, id, from, to)) });
+  });
+
+  // Week view: working hours, leave and booked slots for 7 days from `from` (defaults to this Monday).
+  router.get("/:id/schedule", async (req, res) => {
+    const id = parse(uuid, req.params.id);
+    const { from } = parse(z.object({ from: isoDate.default(weekStart()) }), req.query);
+    const user = me(req);
+    const [helper] = await db.query("SELECT verification FROM helpers WHERE user_id = $1", [id]);
+    if (!helper || (helper.verification !== "verified" && user.role !== "admin" && user.id !== id)) {
+      throw notFound("Helper");
+    }
+    res.json(await weekSchedule(db, id, from, user));
   });
 
   return router;

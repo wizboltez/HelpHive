@@ -6,7 +6,7 @@ import { DetailsForm, DocumentUploader, PhotoUploader, ServicesEditor } from "@/
 import { Empty, Loading, PageHeader, ui } from "@/components/Page";
 import { Chip } from "@/components/StatusChip";
 import { api } from "@/lib/api";
-import { dateLabel, localDate } from "@/lib/format";
+import { dateLabel, localDate, WEEK } from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
 import type { ProfileChanges, WorkerProfile } from "@/lib/types";
 
@@ -87,6 +87,7 @@ function Profile() {
         </Section>
         <div className="space-y-6">
           <Availability profile={profile} />
+          <WorkingHours key={JSON.stringify([profile.workDays, profile.workStart, profile.workEnd])} profile={profile} />
           <Section title="Photo">
             <PhotoUploader profile={profile} />
           </Section>
@@ -126,6 +127,54 @@ function Availability({ profile }: { profile: WorkerProfile }) {
           <span className={`absolute top-0.5 size-5 rounded-full bg-paper shadow transition-all ${profile.isAccepting ? "left-[22px]" : "left-0.5"}`} />
         </button>
       </label>
+    </Section>
+  );
+}
+
+function WorkingHours({ profile }: { profile: WorkerProfile }) {
+  const [form, setForm] = useState({ workDays: profile.workDays, workStart: profile.workStart, workEnd: profile.workEnd });
+  const save = useAction(() => api("/worker/hours", { method: "PUT", body: form }), "Working hours saved");
+  const toggleDay = (day: string) =>
+    setForm({ ...form, workDays: form.workDays.includes(day) ? form.workDays.filter((d) => d !== day) : [...form.workDays, day] });
+
+  return (
+    <Section title="Working hours" hint="Residents see these on your profile and can only book you inside them. Takes effect immediately.">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+      >
+        <span className={ui.eyebrow}>Days</span>
+        <div className="mt-1 grid grid-cols-7 gap-1">
+          {WEEK.map((day) => (
+            <button
+              type="button"
+              key={day}
+              aria-pressed={form.workDays.includes(day)}
+              onClick={() => toggleDay(day)}
+              className={`rounded-lg py-1.5 text-xs ring-1 ${
+                form.workDays.includes(day) ? "bg-ink text-paper ring-ink" : "bg-paper text-ink-soft ring-line"
+              }`}
+            >
+              {day.slice(0, 2)}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label>
+            <span className={ui.eyebrow}>Start</span>
+            <input type="time" value={form.workStart} onChange={(e) => setForm({ ...form, workStart: e.target.value })} className={ui.field} />
+          </label>
+          <label>
+            <span className={ui.eyebrow}>Finish</span>
+            <input type="time" value={form.workEnd} onChange={(e) => setForm({ ...form, workEnd: e.target.value })} className={ui.field} />
+          </label>
+        </div>
+        <button disabled={save.isPending} className={`${ui.darkButton} mt-3`}>
+          Save hours
+        </button>
+      </form>
     </Section>
   );
 }

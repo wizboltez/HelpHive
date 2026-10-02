@@ -15,6 +15,7 @@ import {
   withCancellable,
   type Booking,
 } from "../services/bookings.js";
+import { WORK_HOURS_FIELDS } from "../services/schedule.js";
 
 const bookingSchema = z
   .object({
@@ -192,7 +193,7 @@ async function prepareBooking(db: Db, input: BookingInput) {
   if (input.startDate < today()) throw badRequest("Start date is in the past");
 
   const [helper] = await db.query(
-    `SELECT h.rate_per_visit, h.is_accepting, h.verification, u.is_active
+    `SELECT h.rate_per_visit, h.is_accepting, h.verification, u.is_active, ${WORK_HOURS_FIELDS}
      FROM helpers h JOIN users u ON u.id = h.user_id WHERE h.user_id = $1`,
     [input.helperId],
   );
@@ -204,6 +205,20 @@ async function prepareBooking(db: Db, input: BookingInput) {
   const endDate = planEndDate(input.plan, input.startDate);
   const dates = visitDates(input.startDate, endDate, days);
   if (!dates.length) throw badRequest("None of the chosen days fall within this plan");
+
+  // The slot must fit inside the helper's working hours.
+  const offDays = days.filter((d) => !helper.workDays.includes(d));
+  if (offDays.length) throw badRequest(`The helper doesn't work on ${offDays.join(", ")}`);
+  if (input.startTime < helper.workStart || input.endTime > helper.workEnd) {
+    throw badRequest(`Choose a time within the helper's working hours (${helper.workStart}–${helper.workEnd})`);
+  }
+  if (input.plan === "one_time") {
+    const onLeave = await db.query(
+      "SELECT 1 FROM helper_leaves WHERE helper_id = $1 AND $2::date BETWEEN start_date AND end_date",
+      [input.helperId, input.startDate],
+    );
+    if (onLeave.length) throw badRequest("The helper is on leave that day");
+  }
 
   const services = input.serviceIds.length
     ? await db.query<Service>(

@@ -293,6 +293,33 @@ describe("HelpHive end to end", () => {
     expect((await meera.get("/api/helpers?day=Tue&time=11:00")).body).toHaveLength(1);
   });
 
+  it("keeps bookings inside the helper's working hours and shows the week schedule", async () => {
+    // Can't shrink hours past a house already booked (08:00–10:30 on weekdays).
+    expect((await sunita.put("/api/worker/hours", { workDays: ["Mon", "Tue"], workStart: "08:00", workEnd: "17:00" })).status).toBe(409);
+    expect((await sunita.put("/api/worker/hours", { workDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], workStart: "09:00", workEnd: "17:00" })).status).toBe(409);
+    const hours = { workDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], workStart: "07:00", workEnd: "17:00" };
+    expect((await sunita.put("/api/worker/hours", hours)).status).toBe(200);
+    expect((await sunita.get("/api/worker/profile")).body).toMatchObject(hours);
+    expect((await meera.get("/api/helpers/sunita-devi")).body).toMatchObject(hours);
+
+    const quote = (body: object) =>
+      meera.post("/api/bookings/quote", { helperId: sunitaId, plan: "one_time", startDate: "2026-10-07", ...body });
+    expect((await quote({ startTime: "16:00", endTime: "18:00" })).status).toBe(400); // ends after 17:00
+    expect((await quote({ startDate: "2026-10-11", startTime: "11:00", endTime: "12:00" })).status).toBe(400); // Sunday off
+    expect((await quote({ startTime: "11:00", endTime: "12:00" })).status).toBe(200);
+    expect((await meera.get("/api/helpers?day=Sun&time=11:00")).body).toHaveLength(0);
+    expect((await meera.get("/api/helpers?day=Tue&time=18:00")).body).toHaveLength(0);
+
+    const week = (actor: ReturnType<typeof as>) => actor.get(`/api/helpers/${sunitaId}/schedule?from=2026-10-05`);
+    const forMeera = (await week(meera)).body;
+    expect(forMeera).toMatchObject({ from: "2026-10-05", to: "2026-10-11", workStart: "07:00", workEnd: "17:00" });
+    expect(forMeera.days[0]).toMatchObject({ date: "2026-10-05", weekday: "Mon", working: true, onLeave: false, slots: [] }); // before the plan starts
+    expect(forMeera.days[1].slots).toEqual([{ startTime: "08:00", endTime: "10:30", status: "confirmed", label: "Your booking" }]);
+    expect(forMeera.days[6]).toMatchObject({ weekday: "Sun", working: false });
+    expect((await week(ravi)).body.days[1].slots[0].label).toBe("Booked"); // other residents don't see the flat
+    expect((await week(sunita)).body.days[1].slots[0].label).toBe("Tower A · A-402");
+  });
+
   it("allows free cancellation only until 24h before the start", async () => {
     // Now is exactly 24h before Tue 08:00
     expect((await meera.get(`/api/bookings/${bookingId}`)).body.cancellable).toBe(true);
@@ -323,9 +350,16 @@ describe("HelpHive end to end", () => {
     expect((await sunita.post("/api/visits/check-in", { bookingId, code })).status).toBe(409);
     expect(await notificationTitles(meera)).toContain("Sunita Devi has arrived");
 
+    // Codes are single-use: the arrival code no longer works, the resident now sees a new one.
     setNow("2026-10-06T10:31:00+05:30");
-    const out = await sunita.post("/api/visits/check-out", { bookingId, code });
+    const leaveCode = (await meera.get("/api/visits/today")).body[0].doorCode;
+    expect(leaveCode).toMatch(/^\d{4}$/);
+    expect(leaveCode).not.toBe(code);
+    expect((await sunita.post("/api/visits/check-out", { bookingId, code })).status).toBe(400);
+    const out = await sunita.post("/api/visits/check-out", { bookingId, code: leaveCode });
     expect(out.body.state).toBe("done");
+    expect((await sunita.post("/api/visits/check-out", { bookingId, code: leaveCode })).status).toBe(409);
+    expect((await meera.get("/api/visits/today")).body[0].doorCode).not.toBe(leaveCode);
   });
 
   it("locks the door code after too many wrong tries until the resident issues a new one", async () => {
@@ -339,9 +373,11 @@ describe("HelpHive end to end", () => {
     expect((await sunita.post("/api/visits/check-in", { bookingId, code: visit.doorCode })).status).toBe(423);
 
     const fresh = await meera.post("/api/visits/new-code", { bookingId });
+    expect(fresh.body.doorCode).not.toBe(visit.doorCode);
     expect((await sunita.post("/api/visits/check-in", { bookingId, code: fresh.body.doorCode })).status).toBe(200);
     setNow("2026-10-08T10:30:00+05:30");
-    expect((await sunita.post("/api/visits/check-out", { bookingId, code: fresh.body.doorCode })).status).toBe(200);
+    const leaveCode = (await meera.get("/api/visits/today")).body[0].doorCode;
+    expect((await sunita.post("/api/visits/check-out", { bookingId, code: leaveCode })).status).toBe(200);
   });
 
   it("records leave and shows it to residents", async () => {
@@ -419,5 +455,18 @@ describe("HelpHive end to end", () => {
     expect((await ravi.get("/api/auth/me")).status).toBe(401);
     const login = await request(app).post("/api/auth/login").send({ login: "ravi", password: "correct-horse-1" });
     expect(login.status).toBe(401);
+  });
+
+  it("renames a building and carries the new name through to people and bookings", async () => {
+    expect((await admin.post("/api/admin/buildings", { name: "Tower B" })).status).toBe(201);
+    expect((await admin.patch("/api/admin/buildings/Tower%20A", { name: "Tower B" })).status).toBe(409); // taken
+    expect((await admin.patch("/api/admin/buildings/Tower%20Z", { name: "Tower Q" })).status).toBe(404);
+    expect((await meera.patch("/api/admin/buildings/Tower%20A", { name: "Tower Q" })).status).toBe(403);
+
+    const renamed = await admin.patch("/api/admin/buildings/Tower%20A", { name: "Sunrise Tower" });
+    expect(renamed.body).toEqual({ name: "Sunrise Tower" });
+    expect((await request(app).get("/api/meta")).body.buildings).toEqual(["Sunrise Tower", "Tower B"]);
+    expect((await meera.get("/api/auth/me")).body.building).toBe("Sunrise Tower");
+    expect((await meera.get(`/api/bookings/${bookingId}`)).body.flat).toBe("Sunrise Tower · A-402");
   });
 });

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight, Pencil, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ActionDialog } from "@/components/ActionDialog";
 import { AppShell } from "@/components/AppShell";
@@ -379,7 +379,7 @@ function Complaints() {
 
   return (
     <div className="space-y-3">
-      <Filter value={status} onChange={setStatus} options={{ open: "Open", resolved: "Resolved", dismissed: "Dismissed", "": "All" }} />
+      <Filter value={status} onChange={setStatus} options={{ "": "All" ,open: "Open", resolved: "Resolved", dismissed: "Dismissed" }} />
       {isLoading && <Loading />}
       {shown?.length === 0 && <Empty>No complaints here.</Empty>}
       {shown?.map((c) => (
@@ -510,23 +510,77 @@ function Buildings() {
       <div className="mt-4 space-y-2">
         {meta?.buildings.length === 0 && <Empty>No buildings yet. Add one so people can sign up.</Empty>}
         {meta?.buildings.map((b) => (
-          <div key={b} className={`${ui.row} flex items-center justify-between`}>
-            <span className="font-medium">{b}</span>
-            <ActionDialog
-              trigger={
-                <button aria-label={`Remove ${b}`} className="rounded p-1 text-ink-soft hover:text-absent">
-                  <Trash2 className="size-4" />
-                </button>
-              }
-              title={`Remove ${b}?`}
-              description="Only possible if nobody lives in or serves this building."
-              confirmLabel="Remove"
-              danger
-              onConfirm={() => remove.mutateAsync(b)}
-            />
-          </div>
+          <BuildingRow key={b} name={b} onRemove={() => remove.mutateAsync(b)} />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** One building: its name, rename in place, and remove. */
+function BuildingRow({ name, onRemove }: { name: string; onRemove: () => Promise<unknown> }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const rename = useAction(
+    () => api(`/admin/buildings/${encodeURIComponent(name)}`, { method: "PATCH", body: { name: draft.trim() } }),
+    "Building renamed",
+  );
+
+  if (editing) {
+    return (
+      <form
+        className={`${ui.row} flex items-center gap-2`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          rename.mutate(undefined, { onSuccess: () => setEditing(false) });
+        }}
+      >
+        <input
+          autoFocus
+          required
+          maxLength={60}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
+          aria-label={`New name for ${name}`}
+          className={`${ui.field} mt-0 py-1.5`}
+        />
+        <button disabled={rename.isPending || !draft.trim()} className={`${ui.darkButton} shrink-0`}>
+          Save
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className={`${ui.ghostButton} shrink-0`}>
+          Cancel
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className={`${ui.row} flex items-center gap-2`}>
+      <span className="mr-auto font-medium">{name}</span>
+      <button
+        onClick={() => {
+          setDraft(name);
+          setEditing(true);
+        }}
+        aria-label={`Rename ${name}`}
+        title="Rename — residents, helpers and their bookings move to the new name"
+        className="rounded p-1 text-ink-soft hover:text-accent"
+      >
+        <Pencil className="size-4" />
+      </button>
+      <ActionDialog
+        trigger={
+          <button aria-label={`Remove ${name}`} className="rounded p-1 text-ink-soft hover:text-absent">
+            <Trash2 className="size-4" />
+          </button>
+        }
+        title={`Remove ${name}?`}
+        description="Only possible if nobody lives in or serves this building."
+        confirmLabel="Remove"
+        danger
+        onConfirm={onRemove}
+      />
     </div>
   );
 }

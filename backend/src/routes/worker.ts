@@ -3,11 +3,12 @@ import { z } from "zod";
 import type { Db } from "../db/db.js";
 import { me } from "../lib/auth.js";
 import { CATEGORIES } from "../lib/catalog.js";
-import { monthRange, today } from "../lib/dates.js";
-import { badRequest, conflict, isoDate, notFound, parse, uuid } from "../lib/http.js";
+import { monthRange, today, WEEKDAYS } from "../lib/dates.js";
+import { badRequest, clockTime, conflict, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify, notifyAdmins } from "../lib/notify.js";
 import { acceptFile, DOCUMENT_TYPES, IMAGE_TYPES, removeUpload, uploadPath } from "../lib/uploads.js";
 import { saveProfileChanges } from "../services/profile.js";
+import { WORK_HOURS_FIELDS } from "../services/schedule.js";
 import { announceNewHelper } from "./auth.js";
 
 const detailsSchema = z
@@ -45,6 +46,14 @@ const leaveSchema = z
   .object({ startDate: isoDate, endDate: isoDate, reason: z.string().trim().max(300).default("") })
   .refine((l) => l.endDate >= l.startDate, { message: "End date must be on or after start date", path: ["endDate"] });
 
+const hoursSchema = z
+  .object({
+    workDays: z.array(z.enum(WEEKDAYS)).min(1, "Pick at least one working day"),
+    workStart: clockTime,
+    workEnd: clockTime,
+  })
+  .refine((h) => h.workEnd > h.workStart, { message: "End time must be after start time", path: ["workEnd"] });
+
 const saved = (queued: boolean) =>
   queued ? { queued: true, message: "Sent to the admin for approval" } : { queued: false, message: "Saved" };
 
@@ -57,7 +66,7 @@ export function workerRoutes(db: Db) {
     const [profile] = await db.query(
       `SELECT u.name, h.slug, h.categories, h.summary, h.rate_per_visit AS "ratePerVisit", h.is_accepting AS "isAccepting",
               h.verification, h.verification_note AS "verificationNote", h.onboarded_at IS NOT NULL AS onboarded,
-              '/uploads/photos/' || h.photo_file AS "photoUrl"
+              '/uploads/photos/' || h.photo_file AS "photoUrl", ${WORK_HOURS_FIELDS}
        FROM helpers h JOIN users u ON u.id = h.user_id WHERE h.user_id = $1`,
       [id],
     );
@@ -103,6 +112,28 @@ export function workerRoutes(db: Db) {
     const { isAccepting } = parse(z.object({ isAccepting: z.boolean() }), req.body);
     await db.query("UPDATE helpers SET is_accepting = $2 WHERE user_id = $1", [me(req).id, isAccepting]);
     res.json({ isAccepting });
+  });
+
+  // Regular working hours. Not reviewed, but can't shrink past houses already booked.
+  router.put("/hours", async (req, res) => {
+    const input = parse(hoursSchema, req.body);
+    const id = me(req).id;
+    const outside = await db.query(
+      `SELECT DISTINCT flat FROM bookings
+       WHERE helper_id = $1 AND status = 'confirmed' AND end_date >= $2
+         AND (start_time < $4::time OR end_time > $5::time OR NOT days <@ $3::text[])`,
+      [id, today(), input.workDays, input.workStart, input.workEnd],
+    );
+    if (outside.length) {
+      throw conflict(`These hours leave out houses you're booked at: ${outside.map((b) => b.flat).join(", ")}`);
+    }
+    await db.query("UPDATE helpers SET work_days = $2, work_start = $3, work_end = $4 WHERE user_id = $1", [
+      id,
+      input.workDays,
+      input.workStart,
+      input.workEnd,
+    ]);
+    res.json(input);
   });
 
   // FR-04: upload a verification document (multipart: "docType", optional "docLabel", "file").

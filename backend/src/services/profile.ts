@@ -40,13 +40,16 @@ export async function applyProfileChanges(tx: Db, helperId: string, changes: Pro
 }
 
 /**
- * Unverified helpers edit freely (the admin reviews everything at verification).
+ * Unverified helpers, and helpers still onboarding, edit freely (the admin reviews everything at verification).
  * Verified helpers' edits are queued for approval, merged into any request already waiting.
  * Returns true if the change was queued rather than applied.
  */
 export async function saveProfileChanges(db: Db, helperId: string, changes: ProfileChanges) {
-  const [helper] = await db.query("SELECT verification FROM helpers WHERE user_id = $1", [helperId]);
-  if (helper.verification !== "verified") {
+  const [helper] = await db.query(
+    "SELECT verification, onboarded_at IS NOT NULL AS onboarded FROM helpers WHERE user_id = $1",
+    [helperId],
+  );
+  if (helper.verification !== "verified" || !helper.onboarded) {
     await db.transaction((tx) => applyProfileChanges(tx, helperId, changes));
     return false;
   }

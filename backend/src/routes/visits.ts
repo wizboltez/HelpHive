@@ -11,6 +11,7 @@ import { BOOKING_SELECT, newDoorCode, openVisit, visitState, type Booking } from
 /**
  * Door-code attendance. Each booked day has a 4-digit code the resident sees.
  * The helper enters it on arrival (check-in) and on leaving (check-out); both mark the day present.
+ * Each code works once: using it (or asking for a new one) replaces it with a fresh code.
  */
 export function visitRoutes(db: Db) {
   const router = Router();
@@ -62,10 +63,10 @@ export function visitRoutes(db: Db) {
     const booking = (await bookingsToday("resident", me(req).id)).find((b) => b.id === bookingId);
     if (!booking) throw notFound("Visit today for this booking");
 
-    await openVisit(db, booking.id, today());
+    const current = await openVisit(db, booking.id, today());
     const [visit] = await db.query(
-      "UPDATE visits SET door_code = $3, failed_attempts = 0 WHERE booking_id = $1 AND visit_date = $2 RETURNING *",
-      [booking.id, today(), newDoorCode()],
+      "UPDATE visits SET door_code = $2, failed_attempts = 0 WHERE id = $1 RETURNING *",
+      [current.id, newDoorCode(current.door_code)],
     );
     res.json(toVisit(booking, visit, true));
   });
@@ -92,13 +93,18 @@ export function visitRoutes(db: Db) {
         throw badRequest("Wrong code, try again", { attemptsLeft });
       }
 
+      // Codes are single-use, like an OTP: the one just entered is replaced straight away.
+      // After check-in the resident reads out the new code when the helper leaves.
       const column = action === "check-in" ? "check_in_at" : "check_out_at";
       const [updated] = await db.query(
-        `UPDATE visits SET ${column} = $2, failed_attempts = 0 WHERE id = $1 RETURNING *`,
-        [visit.id, new Date()],
+        `UPDATE visits SET ${column} = $2, door_code = $3, failed_attempts = 0 WHERE id = $1 RETURNING *`,
+        [visit.id, new Date(), newDoorCode(visit.door_code)],
       );
-      const title = action === "check-in" ? `${booking.helperName} has arrived` : `${booking.helperName} has left`;
-      await notify(db, booking.residentId, title, booking.flat, "/dashboard");
+      const [title, body] =
+        action === "check-in"
+          ? [`${booking.helperName} has arrived`, `${booking.flat} · a new code is ready for when they leave`]
+          : [`${booking.helperName} has left`, booking.flat];
+      await notify(db, booking.residentId, title, body, "/dashboard");
       res.json(toVisit(booking, updated, false));
     });
   }

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/helpers/")({
 
 function HelpersList() {
   const { data: meta } = useMeta();
-  const [filters, setFilters] = useState({ q: "", category: "", service: "", status: "", minRating: "", day: "", time: "" });
+  const [filters, setFilters] = useState({ q: "", category: "", building: "", service: "", status: "", minRating: "", day: "", time: "" });
   const set = (key: keyof typeof filters, value: string) => setFilters((f) => ({ ...f, [key]: value }));
 
   // Only send filters that are filled in; "free at" needs both a day and a time.
@@ -36,7 +36,7 @@ function HelpersList() {
         extra services.
       </PageHeader>
 
-      <div className={`${ui.card} mt-8 grid grid-cols-2 gap-3 md:grid-cols-6`}>
+      <div className={`${ui.card} mt-8 grid grid-cols-2 gap-3 md:grid-cols-4`}>
         <label className="col-span-2">
           <span className={ui.eyebrow}>Search</span>
           <input value={filters.q} onChange={(e) => set("q", e.target.value)} placeholder="Name, skill or extra service…" className={ui.field} />
@@ -47,6 +47,15 @@ function HelpersList() {
             <option value="">All</option>
             {meta?.categories.map((c) => (
               <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className={ui.eyebrow}>Building</span>
+          <select value={filters.building} onChange={(e) => set("building", e.target.value)} className={ui.field}>
+            <option value="">All</option>
+            {meta?.buildings.map((b) => (
+              <option key={b}>{b}</option>
             ))}
           </select>
         </label>
