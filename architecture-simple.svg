@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 740" font-family="Segoe UI, Inter, system-ui, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#333"/>
+    </marker>
+    <g id="person">
+      <circle cx="0" cy="-12" r="10" fill="#222"/>
+      <path d="M-17 14a17 15 0 0 1 34 0z" fill="#222"/>
+    </g>
+  </defs>
+
+  <rect width="900" height="740" fill="#fff"/>
+  <text x="450" y="38" text-anchor="middle" font-size="24" font-weight="700" fill="#111">How HelpHive Works</text>
+
+  <!-- Users -->
+  <g text-anchor="middle" fill="#111">
+    <use href="#person" x="110" y="85"/>
+    <text x="110" y="126" font-size="15" font-weight="700">Student</text>
+    <text x="110" y="144" font-size="12" fill="#555">learns &amp; takes quizzes</text>
+
+    <use href="#person" x="260" y="85"/>
+    <text x="260" y="126" font-size="15" font-weight="700">Teacher</text>
+    <text x="260" y="144" font-size="12" fill="#555">tracks class progress</text>
+
+    <use href="#person" x="410" y="85"/>
+    <text x="410" y="126" font-size="15" font-weight="700">Senior Mentor</text>
+    <text x="410" y="144" font-size="12" fill="#555">answers &amp; guides</text>
+
+    <use href="#person" x="560" y="85"/>
+    <text x="560" y="126" font-size="15" font-weight="700">Admin</text>
+    <text x="560" y="144" font-size="12" fill="#555">verifies &amp; moderates</text>
+  </g>
+  <g stroke="#333" stroke-width="1.6" stroke-dasharray="4 4" marker-start="url(#a)" marker-end="url(#a)">
+    <line x1="110" y1="156" x2="110" y2="198"/>
+    <line x1="260" y1="156" x2="260" y2="198"/>
+    <line x1="410" y1="156" x2="410" y2="198"/>
+    <line x1="560" y1="156" x2="560" y2="198"/>
+  </g>
+
+  <!-- 1. App -->
+  <rect x="60" y="205" width="560" height="100" rx="14" fill="#eef4ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="84" y="238" font-size="18" font-weight="700" fill="#1e40af">1. The App</text>
+  <text x="84" y="262" font-size="14" fill="#222">The website everyone uses — in English, Hindi &amp; Marathi</text>
+  <text x="84" y="288" font-size="12" fill="#6b7280">Next.js · React · TypeScript · Tailwind CSS</text>
+
+  <!-- Private vault -->
+  <rect x="660" y="205" width="180" height="100" rx="14" fill="#f5f3ff" stroke="#555" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="750" y="236" text-anchor="middle" font-size="16" font-weight="700" fill="#111">🔒 Private Vault</text>
+  <text x="750" y="258" text-anchor="middle" font-size="12" fill="#222">Encrypted notes that</text>
+  <text x="750" y="274" text-anchor="middle" font-size="12" fill="#222">never leave your device</text>
+  <text x="750" y="294" text-anchor="middle" font-size="11" fill="#6b7280">IndexedDB · AES-GCM</text>
+  <line x1="620" y1="255" x2="658" y2="255" stroke="#333" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- App -> Server -->
+  <line x1="245" y1="307" x2="245" y2="373" stroke="#333" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="256" y="344" font-size="12" fill="#444">sends requests / gets answers</text>
+
+  <!-- 2. Server -->
+  <rect x="60" y="378" width="500" height="112" rx="14" fill="#fff4ec" stroke="#ea580c" stroke-width="2"/>
+  <text x="84" y="411" font-size="18" font-weight="700" fill="#9a3412">2. The Server</text>
+  <text x="84" y="435" font-size="14" fill="#222">Checks who you are, grades quizzes safely,</text>
+  <text x="84" y="453" font-size="14" fill="#222">creates PDF reports &amp; sends emails</text>
+  <text x="84" y="476" font-size="12" fill="#6b7280">Firebase Cloud Functions · Firebase Auth · Node.js</text>
+
+  <!-- App -> Storage direct -->
+  <line x1="595" y1="307" x2="595" y2="563" stroke="#333" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="606" y="426" font-size="12" fill="#444">live updates</text>
+  <text x="606" y="442" font-size="12" fill="#444">(protected by access rules)</text>
+
+  <!-- Server -> AI / Storage -->
+  <line x1="190" y1="492" x2="190" y2="563" stroke="#333" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="201" y="532" font-size="12" fill="#444">asks the AI</text>
+  <line x1="500" y1="492" x2="500" y2="563" stroke="#333" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="404" y="532" font-size="12" fill="#444">save &amp; load</text>
+
+  <!-- 3. AI -->
+  <rect x="60" y="568" width="370" height="112" rx="14" fill="#f6f0ff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="84" y="601" font-size="18" font-weight="700" fill="#5b21b6">3. AI Helper</text>
+  <text x="84" y="625" font-size="14" fill="#222">Answers questions &amp; gives suggestions</text>
+  <text x="84" y="643" font-size="14" fill="#222">(a backup AI takes over if one fails)</text>
+  <text x="84" y="666" font-size="12" fill="#6b7280">Groq (Llama 3.3) · Gemini backup</text>
+
+  <!-- 4. Storage -->
+  <rect x="470" y="568" width="370" height="112" rx="14" fill="#effaf2" stroke="#16a34a" stroke-width="2"/>
+  <text x="494" y="601" font-size="18" font-weight="700" fill="#166534">4. Storage</text>
+  <text x="494" y="625" font-size="14" fill="#222">Keeps accounts, progress,</text>
+  <text x="494" y="643" font-size="14" fill="#222">files &amp; reports safe in the cloud</text>
+  <text x="494" y="666" font-size="12" fill="#6b7280">Cloud Firestore · Cloud Storage</text>
+
+  <text x="450" y="718" text-anchor="middle" font-size="12" fill="#6b7280">Grey text = the technology used for each part</text>
+</svg>
