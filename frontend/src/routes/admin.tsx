@@ -510,10 +510,44 @@ function Buildings() {
       <div className="mt-4 space-y-2">
         {meta?.buildings.length === 0 && <Empty>No buildings yet. Add one so people can sign up.</Empty>}
         {meta?.buildings.map((b) => (
-          <BuildingRow key={b} name={b} onRemove={() => remove.mutateAsync(b)} />
+          <div key={b}>
+            <BuildingRow name={b} onRemove={() => remove.mutateAsync(b)} />
+            <FlatRanges building={b} ranges={meta.flatRanges[b] ?? ""} count={meta.flats[b]?.length ?? 0} />
+          </div>
         ))}
       </div>
     </div>
+  );
+}
+
+/** The flat numbers residents of a building pick from, e.g. "101-104, 201-204, G1". */
+function FlatRanges({ building, ranges, count }: { building: string; ranges: string; count: number }) {
+  const [draft, setDraft] = useState(ranges);
+  const save = useAction(
+    () => api(`/admin/buildings/${encodeURIComponent(building)}/flats`, { method: "PUT", body: { ranges: draft.trim() } }),
+    "Flats saved",
+  );
+  return (
+    <form
+      className="mt-1 flex items-center gap-2 pl-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save.mutate();
+      }}
+    >
+      <input
+        maxLength={500}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Flats, e.g. 101-104, 201-204 (empty = residents type it)"
+        aria-label={`Flat numbers in ${building}`}
+        className={`${ui.field} mt-0 py-1.5 text-xs`}
+      />
+      <span className="shrink-0 text-xs text-ink-soft">{count ? `${count} flats` : "typed"}</span>
+      <button disabled={save.isPending || draft.trim() === ranges} className={`${ui.ghostButton} shrink-0`}>
+        Save
+      </button>
+    </form>
   );
 }
 

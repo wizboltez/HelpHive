@@ -43,6 +43,29 @@ export function BuildingSelect({ value, onChange, required }: { value: string; o
   );
 }
 
+/**
+ * Flat number: a dropdown of the building's flats when the admin has listed them, otherwise a text box.
+ * A saved flat that's no longer on the list stays selectable so the form still shows it.
+ */
+export function FlatSelect({ building, value, onChange }: { building: string; value: string; onChange: (value: string) => void }) {
+  const { data: meta } = useMeta();
+  const flats = meta?.flats[building];
+  if (!flats) {
+    return <input required value={value} onChange={(e) => onChange(e.target.value)} placeholder="402" className={ui.field} />;
+  }
+  return (
+    <select required value={value} onChange={(e) => onChange(e.target.value)} className={ui.field}>
+      <option value="" disabled>
+        Choose
+      </option>
+      {value && !flats.includes(value) && <option>{value}</option>}
+      {flats.map((f) => (
+        <option key={f}>{f}</option>
+      ))}
+    </select>
+  );
+}
+
 /** Toggle chips for the service categories a helper offers. */
 export function CategoryPicker({ value, onToggle }: { value: string[]; onToggle: (category: string) => void }) {
   const { data: meta } = useMeta();

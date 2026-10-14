@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AuthLayout, FieldErrors } from "@/components/AuthLayout";
-import { BuildingSelect, PasswordInput } from "@/components/Fields";
+import { BuildingSelect, FlatSelect, PasswordInput } from "@/components/Fields";
 import { ui } from "@/components/Page";
 import { api } from "@/lib/api";
 import { useMeta, useSession } from "@/lib/hooks";
@@ -106,9 +106,14 @@ function CreateAccount() {
         <div className={role === "resident" ? "grid grid-cols-[1fr_120px] gap-2" : ""}>
           <label className="block">
             <span className={ui.eyebrow}>{role === "resident" ? "Building" : "Building you work in"}</span>
-            <BuildingSelect required value={form.building} onChange={(v) => set("building", v)} />
+            <BuildingSelect required value={form.building} onChange={(v) => setForm((f) => ({ ...f, building: v, place: "" }))} />
           </label>
-          {role === "resident" && text("place", "Flat no.", { placeholder: "402" })}
+          {role === "resident" && (
+            <label className="block">
+              <span className={ui.eyebrow}>Flat no.</span>
+              <FlatSelect building={form.building} value={form.place} onChange={(v) => set("place", v)} />
+            </label>
+          )}
         </div>
 
         <label className="block">

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "../db/db.js";
 import { me } from "../lib/auth.js";
 import { today, weekdayOf } from "../lib/dates.js";
+import { expandFlats } from "../lib/flats.js";
 import { badRequest, conflict, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
 import { removeUpload, uploadPath } from "../lib/uploads.js";
@@ -153,6 +154,18 @@ export function adminRoutes(db: Db) {
       );
     });
     res.json({ name });
+  });
+
+  // Flat numbers residents pick from, e.g. "101-104, 201-204". Empty lets them type it in.
+  router.put("/buildings/:name/flats", async (req, res) => {
+    const { ranges } = parse(z.object({ ranges: z.string().trim().max(500) }), req.body);
+    const flats = expandFlats(ranges);
+    const updated = await db.query("UPDATE buildings SET flat_ranges = $2 WHERE name = $1 RETURNING name", [
+      req.params.name,
+      ranges,
+    ]);
+    if (!updated.length) throw notFound("Building");
+    res.json({ name: req.params.name, ranges, flats });
   });
 
   router.delete("/buildings/:name", async (req, res) => {

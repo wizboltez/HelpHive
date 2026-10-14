@@ -22,7 +22,14 @@ export type User = {
 };
 
 /** Public lists from GET /meta. */
-export type Meta = { buildings: string[]; categories: string[]; emailDomains: string[] };
+export type Meta = {
+  buildings: string[];
+  /** Per building: the admin's flat ranges as typed, and the flats they expand to. Missing = residents type it in. */
+  flatRanges: Record<string, string>;
+  flats: Record<string, string[]>;
+  categories: string[];
+  emailDomains: string[];
+};
 
 export type Service = { id: string; label: string; price: number; unit: "visit" | "event"; isAvailable: boolean };
 

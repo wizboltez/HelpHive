@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
-import { BuildingSelect, PasswordInput } from "@/components/Fields";
+import { BuildingSelect, FlatSelect, PasswordInput } from "@/components/Fields";
 import { Loading, PageHeader, ui } from "@/components/Page";
 import { api } from "@/lib/api";
 import { useAction, useMe } from "@/lib/hooks";
@@ -101,12 +101,12 @@ function Account({ me }: { me: User }) {
           <div className={me.role === "resident" ? "grid grid-cols-[1fr_120px] gap-2" : ""}>
             <label className="block">
               <span className={ui.eyebrow}>{me.role === "resident" ? "Building" : "Building you work in"}</span>
-              <BuildingSelect required value={form.building} onChange={(building) => setForm({ ...form, building })} />
+              <BuildingSelect required value={form.building} onChange={(building) => setForm({ ...form, building, place: "" })} />
             </label>
             {me.role === "resident" && (
               <label className="block">
                 <span className={ui.eyebrow}>Flat no.</span>
-                <input required value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} className={ui.field} />
+                <FlatSelect building={form.building} value={form.place} onChange={(place) => setForm({ ...form, place })} />
               </label>
             )}
           </div>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import type { Db } from "../db/db.js";
 import { checkPassword, hashPassword, me, requireAuth, signToken } from "../lib/auth.js";
+import { expandFlats } from "../lib/flats.js";
 import { badRequest, conflict, parse, unauthorized } from "../lib/http.js";
 import { notifyAdmins } from "../lib/notify.js";
 
@@ -52,9 +53,13 @@ const updateSchema = z.object({ name, phone, building: z.string().trim().min(1),
 
 const passwordSchema = z.object({ currentPassword: z.string(), newPassword: password });
 
-async function assertBuilding(db: Db, building: string) {
-  const found = await db.query("SELECT 1 FROM buildings WHERE name = $1", [building]);
-  if (!found.length) throw badRequest("Choose a building from the list");
+/** The building must exist; a resident's flat must be one of its flats when the admin has listed them. */
+async function assertBuilding(db: Db, building: string, flat?: string) {
+  const [found] = await db.query<{ flat_ranges: string }>("SELECT flat_ranges FROM buildings WHERE name = $1", [building]);
+  if (!found) throw badRequest("Choose a building from the list");
+  if (flat !== undefined && found.flat_ranges && !expandFlats(found.flat_ranges).includes(flat)) {
+    throw badRequest(`Choose your flat in ${building} from the list`);
+  }
 }
 
 export function authRoutes(db: Db) {
@@ -63,7 +68,7 @@ export function authRoutes(db: Db) {
   // FR-01: residents and workers sign up themselves; admins are created with `npm run create-admin`.
   router.post("/register", async (req, res) => {
     const input = parse(registerSchema, req.body);
-    await assertBuilding(db, input.building);
+    await assertBuilding(db, input.building, input.role === "resident" ? input.place : undefined);
     const passwordHash = await hashPassword(input.password);
 
     const userId = await db.transaction(async (tx) => {
@@ -115,7 +120,14 @@ export function authRoutes(db: Db) {
     const input = parse(updateSchema, req.body);
     const user = me(req);
     if (input.name && user.role === "worker") throw badRequest("Change your name from your profile page");
-    if (input.building) await assertBuilding(db, input.building);
+    if (input.building || input.place !== undefined) {
+      // Only check what's changing, so a resident whose flat was later left out of the list can still save.
+      const [current] = await db.query<{ building: string; place: string }>("SELECT building, place FROM users WHERE id = $1", [user.id]);
+      const building = input.building ?? current.building;
+      const place = input.place ?? current.place;
+      const moved = building !== current.building || place !== current.place;
+      if (moved) await assertBuilding(db, building, user.role === "resident" ? place : undefined);
+    }
 
     await db.query(
       `UPDATE users SET name = coalesce($2, name), phone = coalesce($3, phone),

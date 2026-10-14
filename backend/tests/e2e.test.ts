@@ -469,4 +469,24 @@ describe("HelpHive end to end", () => {
     expect((await meera.get("/api/auth/me")).body.building).toBe("Sunrise Tower");
     expect((await meera.get(`/api/bookings/${bookingId}`)).body.flat).toBe("Sunrise Tower · A-402");
   });
+
+  it("lets the admin list a building's flats so residents pick from them", async () => {
+    expect((await admin.put("/api/admin/buildings/Tower%20B/flats", { ranges: "110-101" })).status).toBe(400);
+    expect((await meera.put("/api/admin/buildings/Tower%20B/flats", { ranges: "101-103" })).status).toBe(403);
+    const set = await admin.put("/api/admin/buildings/Tower%20B/flats", { ranges: "101-103, 201-202, G1" });
+    expect(set.body.flats).toEqual(["101", "102", "103", "201", "202", "G1"]);
+    const meta = (await request(app).get("/api/meta")).body;
+    expect(meta.flats).toEqual({ "Tower B": ["101", "102", "103", "201", "202", "G1"] });
+    expect(meta.flatRanges).toEqual({ "Tower B": "101-103, 201-202, G1" });
+
+    const base = { role: "resident", name: "Flat Test", phone: "+91 98200 41022", building: "Tower B", password: "correct-horse-1" };
+    const wrong = await request(app).post("/api/auth/register").send({ ...base, username: "flatno", email: "flatno@gmail.com", place: "999" });
+    expect(wrong.status).toBe(400);
+    const ok = await request(app).post("/api/auth/register").send({ ...base, username: "flatyes", email: "flatyes@gmail.com", place: "202" });
+    expect(ok.status).toBe(201);
+
+    // Meera's flat isn't in Tower B's list: she can't move there with it, but can still save other details.
+    expect((await meera.patch("/api/auth/me", { building: "Tower B" })).status).toBe(400);
+    expect((await meera.patch("/api/auth/me", { phone: "+91 98200 00000", place: "A-402" })).status).toBe(200);
+  });
 });
