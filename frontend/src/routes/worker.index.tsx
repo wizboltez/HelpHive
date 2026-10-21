@@ -95,12 +95,16 @@ function WorkerDashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
                       {r.residentName} · {r.flat} · {planLabel[r.plan]}
-                      {r.categories.length > 0 && ` · ${r.categories.join(" + ")}`}
                     </p>
                     <p className="font-mono text-xs text-ink-soft">
                       {daysLabel(r.days)} · {time12(r.startTime)}–{time12(r.endTime)} ·{" "}
                       {rupees(r.ratePerVisit)}/visit
                     </p>
+                    {(r.categories.length > 0 || r.extras.length > 0) && (
+                      <p className="mt-1 text-xs text-ink-soft">
+                        Booked for: {[...r.categories, ...r.extras.map((extra) => extra.label)].join(", ")}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => accept.mutate(r.id)}
@@ -148,7 +152,15 @@ function WorkerDashboard() {
           <div className="mt-4 divide-y divide-line text-sm">
             {active.map((b) => (
               <div key={b.id} className="flex items-center justify-between py-2.5">
-                <span className="font-mono">{b.flat}</span>
+                <div>
+                  <span className="font-mono">{b.flat}</span>
+                  {(b.categories.length > 0 || b.extras.length > 0) && (
+                    <p className="mt-1 text-xs text-ink-soft">
+                      Booked for:{" "}
+                      {[...b.categories, ...b.extras.map((extra) => extra.label)].join(", ")}
+                    </p>
+                  )}
+                </div>
                 <span className="text-right text-xs text-ink-soft">
                   {daysLabel(b.days)} · {time12(b.startTime)}–{time12(b.endTime)}
                 </span>

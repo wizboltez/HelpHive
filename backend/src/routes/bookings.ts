@@ -108,6 +108,31 @@ export function bookingRoutes(db: Db) {
     res.json(bookings.map(withCancellable));
   });
 
+  router.get("/work", workerOnly, async (req, res) => {
+    const work = await db.query(
+      `SELECT b.id AS "bookingId", scheduled.visit_date::date::text AS date, b.flat,
+              r.name AS "residentName", to_char(b.start_time, 'HH24:MI') AS "startTime",
+              to_char(b.end_time, 'HH24:MI') AS "endTime",
+              b.categories, b.extras
+       FROM bookings b
+       JOIN users r ON r.id = b.resident_id
+       CROSS JOIN LATERAL generate_series(
+         GREATEST(b.start_date, $2::date), b.end_date, interval '1 day'
+       ) AS scheduled(visit_date)
+       WHERE b.helper_id = $1 AND b.status = 'confirmed' AND b.end_date >= $2
+         AND EXTRACT(ISODOW FROM scheduled.visit_date)::int IN (
+           SELECT CASE weekday
+             WHEN 'Mon' THEN 1 WHEN 'Tue' THEN 2 WHEN 'Wed' THEN 3
+             WHEN 'Thu' THEN 4 WHEN 'Fri' THEN 5 WHEN 'Sat' THEN 6 WHEN 'Sun' THEN 7
+           END
+           FROM unnest(b.days) AS weekdays(weekday)
+         )
+       ORDER BY scheduled.visit_date, b.start_time`,
+      [me(req).id, today()],
+    );
+    res.json(work);
+  });
+
   // Booking detail plus each scheduled day and what happened on it.
   router.get("/:id", async (req, res) => {
     await refreshStatuses(db);

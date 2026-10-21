@@ -22,6 +22,7 @@ const nav: Record<Role, { to: string; label: string; verifiedOnly?: boolean }[]>
     { to: "/bookings", label: "Bookings" },
   ],
   worker: [
+    { to: "/worker/work", label: "Work", verifiedOnly: true },
     { to: "/worker/requests", label: "House requests", verifiedOnly: true },
     { to: "/worker/earnings", label: "Earnings", verifiedOnly: true },
     { to: "/worker/profile", label: "Profile" },

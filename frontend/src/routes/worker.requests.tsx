@@ -19,34 +19,46 @@ export const Route = createFileRoute("/worker/requests")({
 function WorkerRequests() {
   const { data: requests, isLoading } = useApi<Booking[]>("/bookings?status=pending");
   const { data: profile } = useApi<WorkerProfile>("/worker/profile");
-  const accept = useAction((id: string) => api(`/bookings/${id}/accept`, { method: "POST" }), "Booking accepted");
+  const accept = useAction(
+    (id: string) => api(`/bookings/${id}/accept`, { method: "POST" }),
+    "Booking accepted",
+  );
   const decline = useAction(
-    ({ id, reason }: { id: string; reason: string }) => api(`/bookings/${id}/reject`, { method: "POST", body: { reason } }),
+    ({ id, reason }: { id: string; reason: string }) =>
+      api(`/bookings/${id}/reject`, { method: "POST", body: { reason } }),
     "Request declined",
   );
 
   return (
     <>
       <PageHeader eyebrow="Open in your block" title="Choose the houses you want.">
-        Every request shows the flat, the hours and the pay before you say yes. Decline anything that doesn't fit your day.
+        Every request shows the flat, the hours and the pay before you say yes. Decline anything
+        that doesn't fit your day.
       </PageHeader>
 
       <div className="mt-8 space-y-3">
         {isLoading && <Loading />}
-        {requests?.length === 0 && <Empty>No requests right now. New ones appear here and in your alerts.</Empty>}
+        {requests?.length === 0 && (
+          <Empty>No requests right now. New ones appear here and in your alerts.</Empty>
+        )}
         {requests?.map((r, i) => (
-          <div key={r.id} className={`${ui.card} settle flex flex-wrap items-center gap-3 px-4 py-4`} style={{ animationDelay: `${i * 90}ms` }}>
+          <div
+            key={r.id}
+            className={`${ui.card} settle flex flex-wrap items-center gap-3 px-4 py-4`}
+            style={{ animationDelay: `${i * 90}ms` }}
+          >
             <div className="min-w-0 flex-1">
               <p className="font-medium">
                 {r.residentName} · {r.flat} · {planLabel[r.plan]}
-                {r.categories.length > 0 && ` · ${r.categories.join(" + ")}`}
               </p>
               <p className="font-mono text-xs text-ink-soft">
-                {daysLabel(r.days)} · {time12(r.startTime)}–{time12(r.endTime)} · from {dateLabel(r.startDate)} · {r.visits} visits ·{" "}
-                {rupees(r.ratePerVisit)}/visit
+                {daysLabel(r.days)} · {time12(r.startTime)}–{time12(r.endTime)} · from{" "}
+                {dateLabel(r.startDate)} · {r.visits} visits · {rupees(r.ratePerVisit)}/visit
               </p>
-              {r.extras.length > 0 && (
-                <p className="mt-1 text-xs text-ink-soft">Also: {r.extras.map((e) => e.label).join(", ")}</p>
+              {(r.categories.length > 0 || r.extras.length > 0) && (
+                <p className="mt-1 text-xs text-ink-soft">
+                  Booked for: {[...r.categories, ...r.extras.map((e) => e.label)].join(", ")}
+                </p>
               )}
               {r.notes && <p className="mt-1 text-xs text-ink-soft">Note: "{r.notes}"</p>}
             </div>
@@ -54,12 +66,19 @@ function WorkerRequests() {
               trigger={<button className={ui.ghostButton}>Decline</button>}
               title={`Decline ${r.residentName}'s request?`}
               description="They'll be notified so they can book someone else."
-              field={{ label: "Reason (optional)", placeholder: "e.g. I'm already booked at that time" }}
+              field={{
+                label: "Reason (optional)",
+                placeholder: "e.g. I'm already booked at that time",
+              }}
               confirmLabel="Decline request"
               danger
               onConfirm={(reason) => decline.mutateAsync({ id: r.id, reason })}
             />
-            <button onClick={() => accept.mutate(r.id)} disabled={accept.isPending} className={ui.darkButton}>
+            <button
+              onClick={() => accept.mutate(r.id)}
+              disabled={accept.isPending}
+              className={ui.darkButton}
+            >
               Accept
             </button>
           </div>
@@ -78,11 +97,16 @@ function WorkerRequests() {
           {profile?.services.map((s) => (
             <div key={s.id} className={`${ui.row} flex items-center justify-between`}>
               <span>
-                {s.label} <span className="ml-1 text-xs text-ink-soft">{rupees(s.price)}/{s.unit}</span>
+                {s.label}{" "}
+                <span className="ml-1 text-xs text-ink-soft">
+                  {rupees(s.price)}/{s.unit}
+                </span>
               </span>
               <span
                 className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ${
-                  s.isAvailable ? "bg-available-soft text-available ring-available/30" : "bg-leave-soft text-leave ring-leave/30"
+                  s.isAvailable
+                    ? "bg-available-soft text-available ring-available/30"
+                    : "bg-leave-soft text-leave ring-leave/30"
                 }`}
               >
                 {s.isAvailable ? "On" : "Off"}
