@@ -31,7 +31,13 @@ export type Meta = {
   emailDomains: string[];
 };
 
-export type Service = { id: string; label: string; price: number; unit: "visit" | "event"; isAvailable: boolean };
+export type Service = {
+  id: string;
+  label: string;
+  price: number;
+  unit: "visit" | "event";
+  isAvailable: boolean;
+};
 
 /** Regular working hours, e.g. Mon–Sat 08:00–18:00. */
 export type WorkHours = { workDays: string[]; workStart: string; workEnd: string };
@@ -53,12 +59,24 @@ export type Helper = WorkHours & {
 export type HelperProfile = Helper & {
   houses: { flat: string; days: string[]; startTime: string; endTime: string }[];
   services: Service[];
-  reviews: { stars: number; comment: string; residentName: string; flat: string; createdAt: string }[];
+  reviews: {
+    stars: number;
+    comment: string;
+    residentName: string;
+    flat: string;
+    createdAt: string;
+  }[];
   hoursLast30Days: number;
   nextLeave: { startDate: string; endDate: string } | null;
 };
 
-export type Extra = { id: string; label: string; unit: "visit" | "event"; price: number; amount: number };
+export type Extra = {
+  id: string;
+  label: string;
+  unit: "visit" | "event";
+  price: number;
+  amount: number;
+};
 
 export type Quote = {
   startDate: string;
@@ -83,6 +101,7 @@ export type Booking = {
   endTime: string;
   visits: number;
   ratePerVisit: number;
+  bookedCategories: string[];
   extras: Extra[];
   total: number;
   status: BookingStatus;
@@ -98,7 +117,12 @@ export type Booking = {
 };
 
 export type BookingDetail = Booking & {
-  schedule: { date: string; state: "done" | "inside" | "missed" | "upcoming"; checkInAt: string | null; checkOutAt: string | null }[];
+  schedule: {
+    date: string;
+    state: "done" | "inside" | "missed" | "upcoming";
+    checkInAt: string | null;
+    checkOutAt: string | null;
+  }[];
 };
 
 export type Visit = {
@@ -155,7 +179,13 @@ export type Schedule = WorkHours & {
   }[];
 };
 
-export type HelperDocument = { id: string; docType: string; docLabel: string | null; mimeType: string; createdAt: string };
+export type HelperDocument = {
+  id: string;
+  docType: string;
+  docLabel: string | null;
+  mimeType: string;
+  createdAt: string;
+};
 
 export type WorkerProfile = WorkHours & {
   name: string;
@@ -182,7 +212,14 @@ export type Earnings = {
   byHouse: { bookingId: string; flat: string; plan: Plan; visits: number; amount: number }[];
 };
 
-export type Notification = { id: string; title: string; body: string; link: string | null; isRead: boolean; createdAt: string };
+export type Notification = {
+  id: string;
+  title: string;
+  body: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: string;
+};
 
 export type Complaint = {
   id: string;

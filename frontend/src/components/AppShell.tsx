@@ -22,6 +22,7 @@ const nav: Record<Role, { to: string; label: string }[]> = {
     { to: "/bookings", label: "Bookings" },
   ],
   worker: [
+    { to: "/worker/work", label: "Work" },
     { to: "/worker/requests", label: "House requests" },
     { to: "/worker/earnings", label: "Earnings" },
     { to: "/worker/profile", label: "Profile" },
@@ -34,7 +35,15 @@ const nav: Record<Role, { to: string; label: string }[]> = {
  * different role to their own home, and helpers who haven't finished setup to onboarding.
  * `minimal` hides the navigation (used by onboarding itself).
  */
-export function AppShell({ role, minimal, children }: { role: Role | Role[]; minimal?: boolean; children: ReactNode }) {
+export function AppShell({
+  role,
+  minimal,
+  children,
+}: {
+  role: Role | Role[];
+  minimal?: boolean;
+  children: ReactNode;
+}) {
   const navigate = useNavigate();
   const { data: me } = useMe();
   const allowed = Array.isArray(role) ? role : [role];
@@ -59,7 +68,11 @@ export function AppShell({ role, minimal, children }: { role: Role | Role[]; min
     <div className="min-h-screen bg-paper text-ink">
       <header className="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
-          <Link to={homeFor(me.role)} className="flex items-center gap-2" aria-label="Go to your dashboard">
+          <Link
+            to={homeFor(me.role)}
+            className="flex items-center gap-2"
+            aria-label="Go to your dashboard"
+          >
             <img src="/favicon.svg" alt="" className="size-7" />
             <span className="font-display text-xl font-bold tracking-tight">HelpHive</span>
           </Link>
@@ -105,9 +118,15 @@ export function AppShell({ role, minimal, children }: { role: Role | Role[]; min
         <footer className="mt-16 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-xs text-ink-soft">
           <span>© {new Date().getFullYear()} HelpHive · Everyone accounted for, by the hour.</span>
           <span className="flex gap-4">
-            <Link to="/about" className="hover:text-ink">About</Link>
-            <Link to="/privacy" className="hover:text-ink">Privacy</Link>
-            <Link to="/terms" className="hover:text-ink">Terms</Link>
+            <Link to="/about" className="hover:text-ink">
+              About
+            </Link>
+            <Link to="/privacy" className="hover:text-ink">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-ink">
+              Terms
+            </Link>
           </span>
         </footer>
       </main>
@@ -140,7 +159,8 @@ function AccountMenu({ me, minimal }: { me: User; minimal?: boolean | undefined 
   const { signOut } = useSession();
   const go = (to: string) => navigate({ to });
 
-  const item = "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-ink focus:bg-paper focus:text-ink";
+  const item =
+    "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-ink focus:bg-paper focus:text-ink";
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -149,7 +169,10 @@ function AccountMenu({ me, minimal }: { me: User; minimal?: boolean | undefined 
       >
         <Avatar name={me.name} photoUrl={me.photoUrl} className="size-10 rounded-full text-sm" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 rounded-2xl border-line bg-card p-1.5 text-ink">
+      <DropdownMenuContent
+        align="end"
+        className="w-64 rounded-2xl border-line bg-card p-1.5 text-ink"
+      >
         <DropdownMenuLabel className="px-2.5 py-2 font-normal">
           <p className="font-medium text-ink">{me.name}</p>
           <p className="truncate text-xs text-ink-soft">{me.email}</p>

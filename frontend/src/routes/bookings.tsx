@@ -26,7 +26,8 @@ function Bookings() {
   return (
     <>
       <PageHeader eyebrow="Your plans" title="Bookings">
-        Cancel free until 24 hours before a plan starts. Payment is settled directly with your helper.
+        Cancel free until 24 hours before a plan starts. Payment is settled directly with your
+        helper.
       </PageHeader>
 
       {isLoading && <Loading />}
@@ -59,7 +60,10 @@ function Bookings() {
 
 function BookingRow({ booking: b }: { booking: Booking }) {
   const [open, setOpen] = useState<"details" | "review" | null>(null);
-  const cancel = useAction((reason: string) => api(`/bookings/${b.id}/cancel`, { method: "POST", body: { reason } }), "Booking cancelled");
+  const cancel = useAction(
+    (reason: string) => api(`/bookings/${b.id}/cancel`, { method: "POST", body: { reason } }),
+    "Booking cancelled",
+  );
   const canReview = b.status === "confirmed" || b.status === "completed";
 
   return (
@@ -67,7 +71,11 @@ function BookingRow({ booking: b }: { booking: Booking }) {
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-medium">
-            <Link to="/helpers/$helperId" params={{ helperId: b.helperSlug }} className="hover:text-accent">
+            <Link
+              to="/helpers/$helperId"
+              params={{ helperId: b.helperSlug }}
+              className="hover:text-accent"
+            >
               {b.helperName}
             </Link>
             <span className="ml-2">
@@ -75,20 +83,33 @@ function BookingRow({ booking: b }: { booking: Booking }) {
             </span>
           </p>
           <p className="mt-1 font-mono text-xs text-ink-soft">
-            {planLabel[b.plan]} · {daysLabel(b.days)} · {time12(b.startTime)}–{time12(b.endTime)} · {dateLabel(b.startDate)}
+            {planLabel[b.plan]} · {daysLabel(b.days)} · {time12(b.startTime)}–{time12(b.endTime)} ·{" "}
+            {dateLabel(b.startDate)}
             {b.endDate !== b.startDate && ` – ${dateLabel(b.endDate)}`}
           </p>
+          {(b.bookedCategories.length > 0 || b.extras.length > 0) && (
+            <p className="mt-1 text-xs text-ink-soft">
+              Booked for:{" "}
+              {[...b.bookedCategories, ...b.extras.map((extra) => extra.label)].join(", ")}
+            </p>
+          )}
           {b.cancelReason && <p className="mt-1 text-xs text-ink-soft">Reason: {b.cancelReason}</p>}
         </div>
         <span className="font-mono text-sm">{rupees(b.total)}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <button onClick={() => setOpen(open === "details" ? null : "details")} className={ui.ghostButton}>
+        <button
+          onClick={() => setOpen(open === "details" ? null : "details")}
+          className={ui.ghostButton}
+        >
           {open === "details" ? "Hide days" : "Day by day"}
         </button>
         {canReview && (
-          <button onClick={() => setOpen(open === "review" ? null : "review")} className={ui.ghostButton}>
+          <button
+            onClick={() => setOpen(open === "review" ? null : "review")}
+            className={ui.ghostButton}
+          >
             Rate helper
           </button>
         )}
@@ -104,7 +125,9 @@ function BookingRow({ booking: b }: { booking: Booking }) {
               onConfirm={(reason) => cancel.mutateAsync(reason)}
             />
           ) : (
-            <span className="rounded-lg bg-leave-soft px-3 py-2 text-xs font-medium text-leave">Past 24h window</span>
+            <span className="rounded-lg bg-leave-soft px-3 py-2 text-xs font-medium text-leave">
+              Past 24h window
+            </span>
           ))}
       </div>
 
@@ -114,7 +137,12 @@ function BookingRow({ booking: b }: { booking: Booking }) {
   );
 }
 
-const dayTone = { done: "available", inside: "booked", missed: "absent", upcoming: "neutral" } as const;
+const dayTone = {
+  done: "available",
+  inside: "booked",
+  missed: "absent",
+  upcoming: "neutral",
+} as const;
 const dayText = { done: "Present", inside: "Inside now", missed: "Missed", upcoming: "Upcoming" };
 
 function DaySchedule({ bookingId }: { bookingId: string }) {
@@ -161,7 +189,13 @@ function ReviewForm({ bookingId, onDone }: { bookingId: string; onDone: () => vo
           </button>
         ))}
       </div>
-      <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="How was the service?" className={ui.field} />
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        rows={2}
+        placeholder="How was the service?"
+        className={ui.field}
+      />
       <button disabled={submit.isPending} className={ui.darkButton}>
         Submit review
       </button>

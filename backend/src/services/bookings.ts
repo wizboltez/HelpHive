@@ -14,6 +14,7 @@ export type Booking = {
   endTime: string;
   visits: number;
   ratePerVisit: number;
+  bookedCategories: string[];
   extras: unknown[];
   total: number;
   status: "pending" | "confirmed" | "rejected" | "cancelled" | "completed";
@@ -31,7 +32,8 @@ export type Booking = {
 export const BOOKING_SELECT = `
   SELECT b.id, b.plan, b.flat, b.start_date AS "startDate", b.end_date AS "endDate", b.days,
          to_char(b.start_time, 'HH24:MI') AS "startTime", to_char(b.end_time, 'HH24:MI') AS "endTime",
-         b.visits, b.rate_per_visit AS "ratePerVisit", b.extras, b.total, b.status, b.notes,
+         b.visits, b.rate_per_visit AS "ratePerVisit", b.booked_categories AS "bookedCategories",
+         b.extras, b.total, b.status, b.notes,
          b.cancel_reason AS "cancelReason", b.created_at AS "createdAt",
          b.resident_id AS "residentId", r.name AS "residentName",
          b.helper_id AS "helperId", hu.name AS "helperName", h.slug AS "helperSlug"

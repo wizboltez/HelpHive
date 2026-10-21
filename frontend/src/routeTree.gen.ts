@@ -28,6 +28,7 @@ import { Route as WorkerEarningsRouteImport } from './routes/worker.earnings'
 import { Route as WorkerOnboardingRouteImport } from './routes/worker.onboarding'
 import { Route as WorkerProfileRouteImport } from './routes/worker.profile'
 import { Route as WorkerRequestsRouteImport } from './routes/worker.requests'
+import { Route as WorkerWorkRouteImport } from './routes/worker.work'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -124,6 +125,11 @@ const WorkerRequestsRoute = WorkerRequestsRouteImport.update({
   path: '/worker/requests',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkerWorkRoute = WorkerWorkRouteImport.update({
+  id: '/worker/work',
+  path: '/worker/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/worker/onboarding': typeof WorkerOnboardingRoute
   '/worker/profile': typeof WorkerProfileRoute
   '/worker/requests': typeof WorkerRequestsRoute
+  '/worker/work': typeof WorkerWorkRoute
   '/helpers/': typeof HelpersIndexRoute
   '/worker/': typeof WorkerIndexRoute
 }
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/worker/onboarding': typeof WorkerOnboardingRoute
   '/worker/profile': typeof WorkerProfileRoute
   '/worker/requests': typeof WorkerRequestsRoute
+  '/worker/work': typeof WorkerWorkRoute
   '/helpers': typeof HelpersIndexRoute
   '/worker': typeof WorkerIndexRoute
 }
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/worker/onboarding': typeof WorkerOnboardingRoute
   '/worker/profile': typeof WorkerProfileRoute
   '/worker/requests': typeof WorkerRequestsRoute
+  '/worker/work': typeof WorkerWorkRoute
   '/helpers/': typeof HelpersIndexRoute
   '/worker/': typeof WorkerIndexRoute
 }
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/worker/onboarding'
     | '/worker/profile'
     | '/worker/requests'
+    | '/worker/work'
     | '/helpers/'
     | '/worker/'
   fileRoutesByTo: FileRoutesByTo
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/worker/onboarding'
     | '/worker/profile'
     | '/worker/requests'
+    | '/worker/work'
     | '/helpers'
     | '/worker'
   id:
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/worker/onboarding'
     | '/worker/profile'
     | '/worker/requests'
+    | '/worker/work'
     | '/helpers/'
     | '/worker/'
   fileRoutesById: FileRoutesById
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   WorkerOnboardingRoute: typeof WorkerOnboardingRoute
   WorkerProfileRoute: typeof WorkerProfileRoute
   WorkerRequestsRoute: typeof WorkerRequestsRoute
+  WorkerWorkRoute: typeof WorkerWorkRoute
   HelpersIndexRoute: typeof HelpersIndexRoute
   WorkerIndexRoute: typeof WorkerIndexRoute
 }
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkerRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/worker/work': {
+      id: '/worker/work'
+      path: '/worker/work'
+      fullPath: '/worker/work'
+      preLoaderRoute: typeof WorkerWorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -433,6 +453,7 @@ const rootRouteChildren: RootRouteChildren = {
   WorkerOnboardingRoute: WorkerOnboardingRoute,
   WorkerProfileRoute: WorkerProfileRoute,
   WorkerRequestsRoute: WorkerRequestsRoute,
+  WorkerWorkRoute: WorkerWorkRoute,
   HelpersIndexRoute: HelpersIndexRoute,
   WorkerIndexRoute: WorkerIndexRoute,
 }

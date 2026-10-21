@@ -26,9 +26,16 @@ function WorkerDashboard() {
   const { data: requests = [] } = useApi<Booking[]>("/bookings?status=pending");
   const { data: active = [] } = useApi<Booking[]>("/bookings?status=confirmed");
   const { data: earnings } = useApi<Earnings>(`/worker/earnings?from=${week.from}&to=${week.to}`);
-  const accept = useAction((id: string) => api(`/bookings/${id}/accept`, { method: "POST" }), "Booking accepted");
+  const accept = useAction(
+    (id: string) => api(`/bookings/${id}/accept`, { method: "POST" }),
+    "Booking accepted",
+  );
 
-  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+  const today = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
   const count = visits?.length ?? 0;
 
   return (
@@ -37,7 +44,9 @@ function WorkerDashboard() {
         <section className={`${ui.card} mb-8 max-w-2xl`}>
           <p className={ui.eyebrow}>Your verification</p>
           <h2 className="mb-4 mt-1 font-display text-xl font-semibold tracking-tight">
-            {me.verification === "pending" ? "Waiting for the society admin" : "Your documents need another look"}
+            {me.verification === "pending"
+              ? "Waiting for the society admin"
+              : "Your documents need another look"}
           </h2>
           <VerificationStatus status={me.verification} />
         </section>
@@ -49,20 +58,26 @@ function WorkerDashboard() {
           {count === 0 ? "No houses today." : `${count} house${count > 1 ? "s" : ""} today.`}
         </h1>
         <p className="mt-3 max-w-[46ch] text-pretty text-ink-soft">
-          Ask the resident for the door code, tap in, and your hours are counted from the moment you arrive.
+          Ask the resident for the door code, tap in, and your hours are counted from the moment you
+          arrive.
         </p>
       </section>
 
       <section className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
         {isLoading && <Loading />}
-        {visits?.map((visit) => <OtpCard key={visit.bookingId} visit={visit} />)}
+        {visits?.map((visit) => (
+          <OtpCard key={visit.bookingId} visit={visit} />
+        ))}
       </section>
 
       <section className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className={`${ui.card} md:col-span-2`}>
           <div className="mb-3 flex items-center justify-between">
             <p className={ui.eyebrow}>New house requests</p>
-            <Link to="/worker/requests" className="font-mono text-xs text-ink-soft hover:text-accent">
+            <Link
+              to="/worker/requests"
+              className="font-mono text-xs text-ink-soft hover:text-accent"
+            >
               See all →
             </Link>
           </div>
@@ -75,10 +90,21 @@ function WorkerDashboard() {
                     {r.residentName} · {r.flat} · {planLabel[r.plan]}
                   </p>
                   <p className="font-mono text-xs text-ink-soft">
-                    {daysLabel(r.days)} · {time12(r.startTime)}–{time12(r.endTime)} · {rupees(r.ratePerVisit)}/visit
+                    {daysLabel(r.days)} · {time12(r.startTime)}–{time12(r.endTime)} ·{" "}
+                    {rupees(r.ratePerVisit)}/visit
                   </p>
+                  {(r.bookedCategories.length > 0 || r.extras.length > 0) && (
+                    <p className="mt-1 text-xs text-ink-soft">
+                      Booked for:{" "}
+                      {[...r.bookedCategories, ...r.extras.map((extra) => extra.label)].join(", ")}
+                    </p>
+                  )}
                 </div>
-                <button onClick={() => accept.mutate(r.id)} disabled={accept.isPending} className={ui.darkButton}>
+                <button
+                  onClick={() => accept.mutate(r.id)}
+                  disabled={accept.isPending}
+                  className={ui.darkButton}
+                >
                   Accept
                 </button>
               </div>
@@ -87,9 +113,17 @@ function WorkerDashboard() {
         </div>
         <div className={ui.card}>
           <p className={`${ui.eyebrow} mb-3`}>This week</p>
-          <p className="font-display text-3xl font-bold tracking-tight">{rupees(earnings?.totalAmount ?? 0)}</p>
-          <p className="mt-1 text-xs text-ink-soft">Earned · {earnings?.totalVisits ?? 0} completed visit{earnings?.totalVisits === 1 ? "" : "s"}</p>
-          <Link to="/worker/earnings" className={`${ui.primaryButton} mt-4 block py-2.5 text-center`}>
+          <p className="font-display text-3xl font-bold tracking-tight">
+            {rupees(earnings?.totalAmount ?? 0)}
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Earned · {earnings?.totalVisits ?? 0} completed visit
+            {earnings?.totalVisits === 1 ? "" : "s"}
+          </p>
+          <Link
+            to="/worker/earnings"
+            className={`${ui.primaryButton} mt-4 block py-2.5 text-center`}
+          >
             Earnings ledger
           </Link>
         </div>
@@ -105,11 +139,21 @@ function WorkerDashboard() {
         {me && <AttendanceCalendar helpers={[{ id: me.id, name: me.name }]} />}
         <aside className={`${ui.card} self-start`}>
           <p className="font-display text-lg font-semibold tracking-tight">My houses</p>
-          {active.length === 0 && <p className="mt-3 text-sm text-ink-soft">No regular houses yet.</p>}
+          {active.length === 0 && (
+            <p className="mt-3 text-sm text-ink-soft">No regular houses yet.</p>
+          )}
           <div className="mt-4 divide-y divide-line text-sm">
             {active.map((b) => (
               <div key={b.id} className="flex items-center justify-between py-2.5">
-                <span className="font-mono">{b.flat}</span>
+                <div>
+                  <span className="font-mono">{b.flat}</span>
+                  {(b.bookedCategories.length > 0 || b.extras.length > 0) && (
+                    <p className="mt-1 text-xs text-ink-soft">
+                      Booked for:{" "}
+                      {[...b.bookedCategories, ...b.extras.map((extra) => extra.label)].join(", ")}
+                    </p>
+                  )}
+                </div>
                 <span className="text-right text-xs text-ink-soft">
                   {daysLabel(b.days)} · {time12(b.startTime)}–{time12(b.endTime)}
                 </span>

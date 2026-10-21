@@ -8,7 +8,15 @@ import { CategoryChips } from "@/components/Fields";
 import { StatusChip } from "@/components/StatusChip";
 import { WeeklySchedule } from "@/components/WeeklySchedule";
 import { api } from "@/lib/api";
-import { dateLabel, daysLabel, localDate, rupees, time12, WEEK, workHoursLabel } from "@/lib/format";
+import {
+  dateLabel,
+  daysLabel,
+  localDate,
+  rupees,
+  time12,
+  WEEK,
+  workHoursLabel,
+} from "@/lib/format";
 import { useAction, useApi } from "@/lib/hooks";
 import type { HelperProfile as Profile, Plan, Quote } from "@/lib/types";
 
@@ -38,12 +46,20 @@ function HelperProfile() {
         <div className="min-w-0 space-y-6">
           <div className={ui.card}>
             <div className="flex items-start gap-4">
-              <Avatar name={helper.name} photoUrl={helper.photoUrl} className="size-20 rounded-2xl text-2xl" />
+              <Avatar
+                name={helper.name}
+                photoUrl={helper.photoUrl}
+                className="size-20 rounded-2xl text-2xl"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h1 className="font-display text-2xl font-semibold tracking-tight">{helper.name}</h1>
+                  <h1 className="font-display text-2xl font-semibold tracking-tight">
+                    {helper.name}
+                  </h1>
                   <span className="font-mono text-xs text-booked">
-                    {helper.reviewCount ? `${helper.rating} ★ · ${helper.reviewCount} reviews` : "No reviews yet"}
+                    {helper.reviewCount
+                      ? `${helper.rating} ★ · ${helper.reviewCount} reviews`
+                      : "No reviews yet"}
                   </span>
                 </div>
                 <div className="mt-2">
@@ -62,7 +78,8 @@ function HelperProfile() {
                 </p>
                 {helper.nextLeave && (
                   <p className="mt-2 text-xs text-leave">
-                    On leave {dateLabel(helper.nextLeave.startDate)} – {dateLabel(helper.nextLeave.endDate)}
+                    On leave {dateLabel(helper.nextLeave.startDate)} –{" "}
+                    {dateLabel(helper.nextLeave.endDate)}
                   </p>
                 )}
               </div>
@@ -97,7 +114,9 @@ function HelperProfile() {
                   </span>
                   <span
                     className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ${
-                      s.isAvailable ? "bg-available-soft text-available ring-available/30" : "bg-leave-soft text-leave ring-leave/30"
+                      s.isAvailable
+                        ? "bg-available-soft text-available ring-available/30"
+                        : "bg-leave-soft text-leave ring-leave/30"
                     }`}
                   >
                     {s.isAvailable ? "Yes" : "Not now"}
@@ -133,7 +152,8 @@ function HelperProfile() {
 }
 
 /** "08:00" + 2 → "10:00" */
-const addHours = (time: string, hours: number) => `${String(Number(time.slice(0, 2)) + hours).padStart(2, "0")}${time.slice(2)}`;
+const addHours = (time: string, hours: number) =>
+  `${String(Number(time.slice(0, 2)) + hours).padStart(2, "0")}${time.slice(2)}`;
 
 /** The helper's weekdays (Mon–Fri), or all their days if they only work weekends. */
 function defaultDays(workDays: string[]): string[] {
@@ -149,14 +169,24 @@ function BookingForm({ helper }: { helper: Profile }) {
     // Start inside the helper's working hours: their first two hours, on their weekdays.
     days: defaultDays(helper.workDays),
     startTime: helper.workStart,
-    endTime: helper.workEnd < addHours(helper.workStart, 2) ? helper.workEnd : addHours(helper.workStart, 2),
+    endTime:
+      helper.workEnd < addHours(helper.workStart, 2)
+        ? helper.workEnd
+        : addHours(helper.workStart, 2),
+    categories: [] as string[],
     serviceIds: [] as string[],
     notes: "",
   });
-  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((f) => ({ ...f, [key]: value }));
-  const toggle = (list: string[], item: string) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
+  const toggle = (list: string[], item: string) =>
+    list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 
-  const body = { helperId: helper.id, ...form, days: form.plan === "one_time" ? undefined : form.days };
+  const body = {
+    helperId: helper.id,
+    ...form,
+    days: form.plan === "one_time" ? undefined : form.days,
+  };
   // Live price from the server, recalculated whenever a priced field changes. The note
   // doesn't affect price, and the previous quote stays on screen while the next one loads.
   const { notes: _notes, ...priced } = body;
@@ -169,8 +199,11 @@ function BookingForm({ helper }: { helper: Profile }) {
   const quoteData = quote.data;
   const quoteError = quote.error?.message;
 
-  const book = useAction(() => api("/bookings", { method: "POST", body }), "Request sent — you'll be notified when it's accepted");
-  const canBook = helper.status !== "booked" && quoteData;
+  const book = useAction(
+    () => api("/bookings", { method: "POST", body }),
+    "Request sent — you'll be notified when it's accepted",
+  );
+  const canBook = helper.status !== "booked" && form.categories.length > 0 && quoteData;
 
   return (
     <form
@@ -180,7 +213,9 @@ function BookingForm({ helper }: { helper: Profile }) {
         book.mutate(undefined, { onSuccess: () => navigate({ to: "/bookings" }) });
       }}
     >
-      <p className="font-display text-lg font-semibold tracking-tight">Book {helper.name.split(" ")[0]}</p>
+      <p className="font-display text-lg font-semibold tracking-tight">
+        Book {helper.name.split(" ")[0]}
+      </p>
 
       <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-paper p-1 text-sm ring-1 ring-line">
         {(["one_time", "weekly", "monthly"] as const).map((plan) => (
@@ -197,7 +232,13 @@ function BookingForm({ helper }: { helper: Profile }) {
 
       <label className="mt-3 block">
         <span className={ui.eyebrow}>{form.plan === "one_time" ? "Date" : "Starting"}</span>
-        <input type="date" min={localDate(0)} value={form.startDate} onChange={(e) => set("startDate", e.target.value)} className={ui.field} />
+        <input
+          type="date"
+          min={localDate(0)}
+          value={form.startDate}
+          onChange={(e) => set("startDate", e.target.value)}
+          className={ui.field}
+        />
       </label>
 
       {form.plan !== "one_time" && (
@@ -212,7 +253,9 @@ function BookingForm({ helper }: { helper: Profile }) {
                 title={helper.workDays.includes(day) ? undefined : "Day off"}
                 onClick={() => set("days", toggle(form.days, day))}
                 className={`rounded-lg py-1.5 text-xs ring-1 disabled:cursor-not-allowed disabled:opacity-30 disabled:line-through ${
-                  form.days.includes(day) ? "bg-ink text-paper ring-ink" : "bg-paper text-ink-soft ring-line"
+                  form.days.includes(day)
+                    ? "bg-ink text-paper ring-ink"
+                    : "bg-paper text-ink-soft ring-line"
                 }`}
               >
                 {day.slice(0, 2)}
@@ -225,20 +268,56 @@ function BookingForm({ helper }: { helper: Profile }) {
       <div className="mt-3 grid grid-cols-2 gap-2">
         <label>
           <span className={ui.eyebrow}>From</span>
-          <input type="time" min={helper.workStart} max={helper.workEnd} value={form.startTime} onChange={(e) => set("startTime", e.target.value)} className={ui.field} />
+          <input
+            type="time"
+            min={helper.workStart}
+            max={helper.workEnd}
+            value={form.startTime}
+            onChange={(e) => set("startTime", e.target.value)}
+            className={ui.field}
+          />
         </label>
         <label>
           <span className={ui.eyebrow}>To</span>
-          <input type="time" min={helper.workStart} max={helper.workEnd} value={form.endTime} onChange={(e) => set("endTime", e.target.value)} className={ui.field} />
+          <input
+            type="time"
+            min={helper.workStart}
+            max={helper.workEnd}
+            value={form.endTime}
+            onChange={(e) => set("endTime", e.target.value)}
+            className={ui.field}
+          />
         </label>
       </div>
       <p className="mt-1.5 text-[11px] text-ink-soft">
-        Works {time12(helper.workStart)} – {time12(helper.workEnd)}. Check the weekly schedule for free slots.
+        Works {time12(helper.workStart)} – {time12(helper.workEnd)}. Check the weekly schedule for
+        free slots.
       </p>
+
+      {helper.categories.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <span className={ui.eyebrow}>What do you need help with?</span>
+          <p className="text-xs text-ink-soft">
+            Choose one or more of {helper.name.split(" ")[0]}'s services. They’ll see your choices
+            with the request.
+          </p>
+          {helper.categories.map((category) => (
+            <label key={category} className={`${ui.row} flex items-center gap-2`}>
+              <input
+                type="checkbox"
+                checked={form.categories.includes(category)}
+                onChange={() => set("categories", toggle(form.categories, category))}
+                className="accent-accent"
+              />
+              {category}
+            </label>
+          ))}
+        </div>
+      )}
 
       {helper.services.some((s) => s.isAvailable) && (
         <div className="mt-3 space-y-1.5">
-          <span className={ui.eyebrow}>Add services</span>
+          <span className={ui.eyebrow}>Optional extra services</span>
           {helper.services
             .filter((s) => s.isAvailable)
             .map((s) => (
@@ -260,16 +339,31 @@ function BookingForm({ helper }: { helper: Profile }) {
 
       <label className="mt-3 block">
         <span className={ui.eyebrow}>Note for the helper</span>
-        <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} className={ui.field} placeholder="Optional" />
+        <textarea
+          value={form.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          rows={2}
+          className={ui.field}
+          placeholder="Optional"
+        />
       </label>
 
       <div className="mt-4 space-y-2.5 border-t border-line pt-3 text-sm">
         {quoteError && <p className="text-xs text-absent">{quoteError}</p>}
         {quoteData && (
           <>
+            {(form.categories.length > 0 || quoteData.extras.length > 0) && (
+              <div className="flex justify-between gap-3">
+                <span className="text-ink-soft">Booked for</span>
+                <span className="text-right">
+                  {[...form.categories, ...quoteData.extras.map((extra) => extra.label)].join(", ")}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-ink-soft">
-                {quoteData.visits} visit{quoteData.visits === 1 ? "" : "s"} × {rupees(quoteData.ratePerVisit)}
+                {quoteData.visits} visit{quoteData.visits === 1 ? "" : "s"} ×{" "}
+                {rupees(quoteData.ratePerVisit)}
               </span>
               <span className="font-mono">{rupees(quoteData.base)}</span>
             </div>
@@ -299,7 +393,11 @@ function BookingForm({ helper }: { helper: Profile }) {
         Free cancellation until 24h before the first visit. Pay your helper directly.
       </p>
       <button disabled={!canBook || book.isPending} className={`${ui.primaryButton} mt-4 w-full`}>
-        {helper.status === "booked" ? "Not taking new work" : book.isPending ? "Sending…" : "Send booking request"}
+        {helper.status === "booked"
+          ? "Not taking new work"
+          : book.isPending
+            ? "Sending…"
+            : "Send booking request"}
       </button>
     </form>
   );

@@ -268,20 +268,74 @@ describe("HelpHive end to end", () => {
     const slot = { helperId: sunitaId, plan: "weekly", startDate: "2026-10-06", startTime: "08:00", endTime: "10:30" };
     expect((await sunita.post("/api/bookings", slot)).status).toBe(403);
 
-    const mine = await meera.post("/api/bookings", { ...slot, serviceIds: [chapatiServiceId] });
+    const mine = await meera.post("/api/bookings", {
+      ...slot,
+      categories: ["Cooking", "Housekeeping"],
+      serviceIds: [chapatiServiceId],
+    });
     expect(mine.status).toBe(201);
     expect(mine.body).toMatchObject({ status: "pending", flat: "Tower A · A-402", total: 2000 + 900 + 49, cancellable: true });
+    expect(mine.body.bookedCategories).toEqual(["Cooking", "Housekeeping"]);
+    expect(mine.body.extras).toMatchObject([{ id: chapatiServiceId, label: "Daily chapatis", amount: 900 }]);
     bookingId = mine.body.id;
 
-    const other = await ravi.post("/api/bookings", { ...slot, startTime: "09:00", endTime: "11:00" });
+    const other = await ravi.post("/api/bookings", {
+      ...slot,
+      startTime: "09:00",
+      endTime: "11:00",
+      categories: ["Cooking"],
+    });
     expect(other.status).toBe(201);
 
     const requests = await sunita.get("/api/bookings?status=pending");
     expect(requests.body).toHaveLength(2);
+    expect(requests.body.find((booking: { id: string }) => booking.id === bookingId).extras).toMatchObject([
+      { id: chapatiServiceId, label: "Daily chapatis", amount: 900 },
+    ]);
+    expect(requests.body.find((booking: { id: string }) => booking.id === bookingId).bookedCategories).toEqual([
+      "Cooking",
+      "Housekeeping",
+    ]);
 
     const accepted = await sunita.post(`/api/bookings/${bookingId}/accept`);
     expect(accepted.body.status).toBe("confirmed");
+    expect(accepted.body.bookedCategories).toEqual(["Cooking", "Housekeeping"]);
+    const work = await sunita.get("/api/bookings/work");
+    expect(work.status).toBe(200);
+    expect(work.body).toContainEqual(
+      expect.objectContaining({
+        bookingId,
+        date: "2026-10-06",
+        flat: "Tower A · A-402",
+        residentName: "User meera",
+        startTime: "08:00",
+        endTime: "10:30",
+      }),
+    );
+    expect((await meera.get("/api/bookings/work")).status).toBe(403);
+    setNow("2026-10-06T07:30:00+05:30");
+    const reminders = await sunita.get("/api/notifications");
+    expect(reminders.body.items.filter((item: { title: string }) => item.title === "Upcoming work")).toHaveLength(1);
+    expect(reminders.body.items[0]).toMatchObject({
+      title: "Upcoming work",
+      body: expect.stringContaining("Tower A · A-402 at 8:00 AM"),
+      link: "/worker/work",
+    });
+    await sunita.get("/api/notifications");
+    expect((await sunita.get("/api/notifications")).body.items.filter((item: { title: string }) => item.title === "Upcoming work"))
+      .toHaveLength(1);
+    setNow("2026-10-05T08:00:00+05:30");
+    expect((await sunita.get("/api/bookings?status=confirmed")).body[0].extras).toMatchObject([
+      { id: chapatiServiceId, label: "Daily chapatis", amount: 900 },
+    ]);
     expect((await sunita.post(`/api/bookings/${other.body.id}/accept`)).status).toBe(409); // overlaps
+
+    const invalidCategory = await meera.post("/api/bookings/quote", {
+      ...slot,
+      categories: ["Babysitting"],
+    });
+    expect(invalidCategory.status).toBe(400); // helper doesn't offer babysitting
+    expect((await meera.post("/api/bookings", slot)).status).toBe(400); // category selection is required
 
     expect((await ravi.post(`/api/bookings/${other.body.id}/cancel`, { reason: "Found someone" })).body.status).toBe("cancelled");
     expect(await notificationTitles(meera)).toContain("Booking confirmed");
@@ -441,6 +495,7 @@ describe("HelpHive end to end", () => {
   it("completes finished plans and expires unanswered requests", async () => {
     const late = await meera.post("/api/bookings", {
       helperId: sunitaId, plan: "one_time", startDate: "2026-10-14", startTime: "15:00", endTime: "17:00",
+      categories: ["Cooking"],
     });
     expect(late.status).toBe(201);
 

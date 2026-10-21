@@ -2,6 +2,7 @@ import { Router, type Request } from "express";
 import { z } from "zod";
 import type { Db } from "../db/db.js";
 import { me, requireRole } from "../lib/auth.js";
+import { CATEGORIES } from "../lib/catalog.js";
 import { today, weekdayOf, WEEKDAYS } from "../lib/dates.js";
 import { badRequest, clockTime, conflict, forbidden, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
@@ -25,6 +26,7 @@ const bookingSchema = z
     days: z.array(z.enum(WEEKDAYS)).min(1).optional(), // ignored for one-time; defaults to Mon–Fri
     startTime: clockTime,
     endTime: clockTime,
+    categories: z.array(z.string().trim().min(1).max(40)).max(CATEGORIES.length).default([]),
     serviceIds: z.array(uuid).default([]),
     notes: z.string().trim().max(500).default(""),
   })
@@ -58,6 +60,7 @@ export function bookingRoutes(db: Db) {
   // FR-05 / UC-06: resident requests a booking; the helper then accepts or rejects it.
   router.post("/", residentOnly, async (req, res) => {
     const input = parse(bookingSchema, req.body);
+    if (!input.categories.length) throw badRequest("Choose at least one service for this booking");
     const user = me(req);
 
     const id = await db.transaction(async (tx) => {
@@ -71,10 +74,10 @@ export function bookingRoutes(db: Db) {
       );
       const [{ id }] = await tx.query(
         `INSERT INTO bookings (resident_id, helper_id, flat, plan, start_date, end_date, days, start_time, end_time,
-                               visits, rate_per_visit, extras, total, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14) RETURNING id`,
+                               visits, rate_per_visit, booked_categories, extras, total, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15) RETURNING id`,
         [user.id, input.helperId, flat, input.plan, slot.startDate, slot.endDate, slot.days, slot.startTime,
-          slot.endTime, quote.visits, quote.ratePerVisit, JSON.stringify(quote.extras), quote.total, input.notes],
+          slot.endTime, quote.visits, quote.ratePerVisit, input.categories, JSON.stringify(quote.extras), quote.total, input.notes],
       );
       await notify(tx, input.helperId, "New house request", `${flat} · ${input.plan.replace("_", "-")} plan`, "/worker/requests");
       return id;
@@ -103,6 +106,31 @@ export function bookingRoutes(db: Db) {
       params,
     );
     res.json(bookings.map(withCancellable));
+  });
+
+  router.get("/work", workerOnly, async (req, res) => {
+    const work = await db.query(
+      `SELECT b.id AS "bookingId", scheduled.visit_date::date::text AS date, b.flat,
+              r.name AS "residentName", to_char(b.start_time, 'HH24:MI') AS "startTime",
+              to_char(b.end_time, 'HH24:MI') AS "endTime",
+              b.booked_categories AS "bookedCategories", b.extras
+       FROM bookings b
+       JOIN users r ON r.id = b.resident_id
+       CROSS JOIN LATERAL generate_series(
+         GREATEST(b.start_date, $2::date), b.end_date, interval '1 day'
+       ) AS scheduled(visit_date)
+       WHERE b.helper_id = $1 AND b.status = 'confirmed' AND b.end_date >= $2
+         AND EXTRACT(ISODOW FROM scheduled.visit_date)::int IN (
+           SELECT CASE weekday
+             WHEN 'Mon' THEN 1 WHEN 'Tue' THEN 2 WHEN 'Wed' THEN 3
+             WHEN 'Thu' THEN 4 WHEN 'Fri' THEN 5 WHEN 'Sat' THEN 6 WHEN 'Sun' THEN 7
+           END
+           FROM unnest(b.days) AS weekdays(weekday)
+         )
+       ORDER BY scheduled.visit_date, b.start_time`,
+      [me(req).id, today()],
+    );
+    res.json(work);
   });
 
   // Booking detail plus each scheduled day and what happened on it.
@@ -193,13 +221,19 @@ async function prepareBooking(db: Db, input: BookingInput) {
   if (input.startDate < today()) throw badRequest("Start date is in the past");
 
   const [helper] = await db.query(
-    `SELECT h.rate_per_visit, h.is_accepting, h.verification, u.is_active, ${WORK_HOURS_FIELDS}
+    `SELECT h.rate_per_visit, h.categories, h.is_accepting, h.verification, u.is_active, ${WORK_HOURS_FIELDS}
      FROM helpers h JOIN users u ON u.id = h.user_id WHERE h.user_id = $1`,
     [input.helperId],
   );
   if (!helper || helper.verification !== "verified" || !helper.is_active) throw notFound("Helper");
   if (!helper.is_accepting) throw conflict("This helper is not taking new bookings right now");
   if (helper.rate_per_visit <= 0) throw conflict("This helper hasn't set a rate yet");
+  if (
+    input.categories.length !== new Set(input.categories).size ||
+    input.categories.some((category) => !helper.categories.includes(category))
+  ) {
+    throw badRequest("One or more chosen categories isn't offered by this helper");
+  }
 
   const days = input.plan === "one_time" ? [weekdayOf(input.startDate)] : (input.days ?? WEEKDAYS_MON_FRI);
   const endDate = planEndDate(input.plan, input.startDate);
