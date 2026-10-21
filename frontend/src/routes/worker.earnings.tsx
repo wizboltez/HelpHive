@@ -9,7 +9,7 @@ import type { Earnings } from "@/lib/types";
 export const Route = createFileRoute("/worker/earnings")({
   head: () => ({ meta: [{ title: "Earnings — HelpHive helper" }] }),
   component: () => (
-    <AppShell role="worker">
+    <AppShell role="worker" verifiedOnly>
       <WorkerEarnings />
     </AppShell>
   ),

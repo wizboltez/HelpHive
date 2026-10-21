@@ -75,7 +75,8 @@ function BookingRow({ booking: b }: { booking: Booking }) {
             </span>
           </p>
           <p className="mt-1 font-mono text-xs text-ink-soft">
-            {planLabel[b.plan]} · {daysLabel(b.days)} · {time12(b.startTime)}–{time12(b.endTime)} · {dateLabel(b.startDate)}
+            {planLabel[b.plan]}
+            {b.categories.length > 0 && ` · ${b.categories.join(" + ")}`} · {daysLabel(b.days)} · {time12(b.startTime)}–{time12(b.endTime)} · {dateLabel(b.startDate)}
             {b.endDate !== b.startDate && ` – ${dateLabel(b.endDate)}`}
           </p>
           {b.cancelReason && <p className="mt-1 text-xs text-ink-soft">Reason: {b.cancelReason}</p>}

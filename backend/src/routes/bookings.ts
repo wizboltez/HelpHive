@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "../db/db.js";
 import { me, requireRole } from "../lib/auth.js";
 import { today, weekdayOf, WEEKDAYS } from "../lib/dates.js";
+import { CATEGORIES } from "../lib/catalog.js";
 import { badRequest, clockTime, conflict, forbidden, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
 import { planEndDate, priceBooking, visitDates, WEEKDAYS_MON_FRI, type Service } from "../lib/pricing.js";
@@ -25,6 +26,7 @@ const bookingSchema = z
     days: z.array(z.enum(WEEKDAYS)).min(1).optional(), // ignored for one-time; defaults to Mon–Fri
     startTime: clockTime,
     endTime: clockTime,
+    categories: z.array(z.enum(CATEGORIES)).min(1, "Choose at least one service"),
     serviceIds: z.array(uuid).default([]),
     notes: z.string().trim().max(500).default(""),
   })
@@ -71,12 +73,13 @@ export function bookingRoutes(db: Db) {
       );
       const [{ id }] = await tx.query(
         `INSERT INTO bookings (resident_id, helper_id, flat, plan, start_date, end_date, days, start_time, end_time,
-                               visits, rate_per_visit, extras, total, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14) RETURNING id`,
+                               visits, rate_per_visit, categories, extras, total, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15) RETURNING id`,
         [user.id, input.helperId, flat, input.plan, slot.startDate, slot.endDate, slot.days, slot.startTime,
-          slot.endTime, quote.visits, quote.ratePerVisit, JSON.stringify(quote.extras), quote.total, input.notes],
+          slot.endTime, quote.visits, quote.ratePerVisit, quote.categories.map((c) => c.category),
+          JSON.stringify(quote.extras), quote.total, input.notes],
       );
-      await notify(tx, input.helperId, "New house request", `${flat} · ${input.plan.replace("_", "-")} plan`, "/worker/requests");
+      await notify(tx, input.helperId, "New house request", `${flat} · ${input.categories.join(", ")} · ${input.plan.replace("_", "-")} plan`, "/worker/requests");
       return id;
     });
 
@@ -193,13 +196,12 @@ async function prepareBooking(db: Db, input: BookingInput) {
   if (input.startDate < today()) throw badRequest("Start date is in the past");
 
   const [helper] = await db.query(
-    `SELECT h.rate_per_visit, h.is_accepting, h.verification, u.is_active, ${WORK_HOURS_FIELDS}
+    `SELECT h.category_rates, h.is_accepting, h.verification, u.is_active, ${WORK_HOURS_FIELDS}
      FROM helpers h JOIN users u ON u.id = h.user_id WHERE h.user_id = $1`,
     [input.helperId],
   );
   if (!helper || helper.verification !== "verified" || !helper.is_active) throw notFound("Helper");
   if (!helper.is_accepting) throw conflict("This helper is not taking new bookings right now");
-  if (helper.rate_per_visit <= 0) throw conflict("This helper hasn't set a rate yet");
 
   const days = input.plan === "one_time" ? [weekdayOf(input.startDate)] : (input.days ?? WEEKDAYS_MON_FRI);
   const endDate = planEndDate(input.plan, input.startDate);
@@ -231,7 +233,14 @@ async function prepareBooking(db: Db, input: BookingInput) {
     throw badRequest("One or more of the chosen services isn't offered by this helper");
   }
 
+  // The rate per visit is the sum of the chosen services' rates.
+  const rates: Record<string, number> = helper.category_rates;
+  const unoffered = input.categories.filter((c) => !rates[c]);
+  if (unoffered.length) throw badRequest(`This helper doesn't offer ${unoffered.join(", ")}`);
+  const categories = [...new Set(input.categories)].map((category) => ({ category, rate: rates[category]! }));
+  const ratePerVisit = categories.reduce((sum, c) => sum + c.rate, 0);
+
   const slot = { startDate: input.startDate, endDate, days, startTime: input.startTime, endTime: input.endTime };
-  const quote = { ...slot, ratePerVisit: helper.rate_per_visit, ...priceBooking(dates.length, helper.rate_per_visit, services) };
+  const quote = { ...slot, ratePerVisit, categories, ...priceBooking(dates.length, ratePerVisit, services) };
   return { slot, quote };
 }

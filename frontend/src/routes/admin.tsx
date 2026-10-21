@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, Building2, Pencil, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { ActionDialog } from "@/components/ActionDialog";
 import { AppShell } from "@/components/AppShell";
@@ -120,6 +120,7 @@ type AdminHelper = {
   categories: string[];
   summary: string;
   ratePerVisit: number;
+  categoryRates: Record<string, number>;
   photoUrl: string | null;
   verification: "pending" | "verified" | "rejected";
   verificationNote: string | null;
@@ -155,7 +156,7 @@ function Verification() {
               </div>
               {h.summary && <p className="mt-2 text-sm text-ink-soft">{h.summary}</p>}
               <p className="mt-1 text-sm">
-                Rate <span className="font-mono">{rupees(h.ratePerVisit)}</span>/visit
+                Rates per visit <span className="font-mono">{ratesText(h.categoryRates)}</span>
               </p>
               {h.verificationNote && <p className="mt-1 text-xs text-ink-soft">Note: {h.verificationNote}</p>}
             </div>
@@ -205,7 +206,7 @@ function Verification() {
 // ── Profile changes ─────────────────────────────────────────
 
 type ChangeRequest = ProfileChange & {
-  current: { id: string; name: string; slug: string; categories: string[]; summary: string; ratePerVisit: number; photoUrl: string | null };
+  current: { id: string; name: string; slug: string; categories: string[]; summary: string; ratePerVisit: number; categoryRates: Record<string, number>; photoUrl: string | null };
   currentServices: ServiceDraft[];
 };
 
@@ -269,7 +270,8 @@ function ProfileChanges() {
               {c.name !== undefined && <Diff label="Name" before={r.current.name} after={c.name} />}
               {c.categories && <Diff label="Categories" before={r.current.categories.join(", ") || "None"} after={c.categories.join(", ")} />}
               {c.summary !== undefined && <Diff label="About" before={r.current.summary || "—"} after={c.summary || "—"} />}
-              {c.ratePerVisit !== undefined && <Diff label="Rate / visit" before={rupees(r.current.ratePerVisit)} after={rupees(c.ratePerVisit)} />}
+              {c.categoryRates && <Diff label="Rates / visit" before={ratesText(r.current.categoryRates)} after={ratesText(c.categoryRates)} />}
+              {c.ratePerVisit !== undefined && !c.categoryRates && <Diff label="Rate / visit" before={rupees(r.current.ratePerVisit)} after={rupees(c.ratePerVisit)} />}
               {c.services && <Diff label="Services" before={servicesText(r.currentServices)} after={servicesText(c.services)} />}
               {c.photoFile && (
                 <Diff
@@ -484,6 +486,9 @@ function Users() {
   );
 }
 
+const ratesText = (rates: Record<string, number>) =>
+  Object.entries(rates).map(([c, rate]) => `${c} ${rupees(rate)}`).join(", ") || "None";
+
 // ── Buildings ───────────────────────────────────────────────
 
 function Buildings() {
@@ -493,8 +498,10 @@ function Buildings() {
   const remove = useAction((building: string) => api(`/admin/buildings/${encodeURIComponent(building)}`, { method: "DELETE" }), "Building removed");
 
   return (
-    <div className={`${ui.card} max-w-xl`}>
-      <p className="text-sm text-ink-soft">Residents and helpers choose from these when they sign up.</p>
+    <div className={`${ui.card} max-w-3xl`}>
+      <p className="text-sm text-ink-soft">
+        Residents and helpers choose from these when they sign up. List a building's flats so residents pick theirs instead of typing it.
+      </p>
       <form
         className="mt-4 flex gap-2"
         onSubmit={(e) => {
@@ -507,12 +514,16 @@ function Buildings() {
           Add building
         </button>
       </form>
-      <div className="mt-4 space-y-2">
-        {meta?.buildings.length === 0 && <Empty>No buildings yet. Add one so people can sign up.</Empty>}
+      {meta?.buildings.length === 0 && (
+        <div className="mt-4">
+          <Empty>No buildings yet. Add one so people can sign up.</Empty>
+        </div>
+      )}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {meta?.buildings.map((b) => (
-          <div key={b}>
+          <div key={b} className="rounded-xl bg-paper ring-1 ring-line">
             <BuildingRow name={b} onRemove={() => remove.mutateAsync(b)} />
-            <FlatRanges building={b} ranges={meta.flatRanges[b] ?? ""} count={meta.flats[b]?.length ?? 0} />
+            <FlatRanges building={b} ranges={meta.flatRanges[b] ?? ""} flats={meta.flats[b] ?? []} />
           </div>
         ))}
       </div>
@@ -521,32 +532,56 @@ function Buildings() {
 }
 
 /** The flat numbers residents of a building pick from, e.g. "101-104, 201-204, G1". */
-function FlatRanges({ building, ranges, count }: { building: string; ranges: string; count: number }) {
+function FlatRanges({ building, ranges, flats }: { building: string; ranges: string; flats: string[] }) {
   const [draft, setDraft] = useState(ranges);
   const save = useAction(
     () => api(`/admin/buildings/${encodeURIComponent(building)}/flats`, { method: "PUT", body: { ranges: draft.trim() } }),
     "Flats saved",
   );
+  const shown = flats.slice(0, 12);
   return (
     <form
-      className="mt-1 flex items-center gap-2 pl-3"
+      className="border-t border-line px-3 pb-3 pt-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate();
       }}
     >
-      <input
-        maxLength={500}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder="Flats, e.g. 101-104, 201-204 (empty = residents type it)"
-        aria-label={`Flat numbers in ${building}`}
-        className={`${ui.field} mt-0 py-1.5 text-xs`}
-      />
-      <span className="shrink-0 text-xs text-ink-soft">{count ? `${count} flats` : "typed"}</span>
-      <button disabled={save.isPending || draft.trim() === ranges} className={`${ui.ghostButton} shrink-0`}>
-        Save
-      </button>
+      <div className="flex items-center justify-between">
+        <span className={ui.eyebrow}>Flat numbers</span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+            flats.length ? "bg-accent-soft text-accent" : "bg-card text-ink-soft ring-1 ring-line"
+          }`}
+        >
+          {flats.length ? `${flats.length} flats` : "Typed by residents"}
+        </span>
+      </div>
+      <div className="mt-1.5 flex gap-2">
+        <input
+          maxLength={500}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="101-104, 201-204, G1"
+          aria-label={`Flat numbers in ${building}`}
+          className={`${ui.field} mt-0 bg-card py-2`}
+        />
+        <button disabled={save.isPending || draft.trim() === ranges} className={`${ui.darkButton} shrink-0`}>
+          Save
+        </button>
+      </div>
+      {flats.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {shown.map((f) => (
+            <span key={f} className="rounded-md bg-card px-1.5 py-0.5 font-mono text-[11px] text-ink-soft ring-1 ring-line">
+              {f}
+            </span>
+          ))}
+          {flats.length > shown.length && (
+            <span className="px-1 py-0.5 text-[11px] text-ink-soft">+{flats.length - shown.length} more</span>
+          )}
+        </div>
+      )}
     </form>
   );
 }
@@ -563,7 +598,7 @@ function BuildingRow({ name, onRemove }: { name: string; onRemove: () => Promise
   if (editing) {
     return (
       <form
-        className={`${ui.row} flex items-center gap-2`}
+        className="flex items-center gap-2 px-3 py-2.5 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           rename.mutate(undefined, { onSuccess: () => setEditing(false) });
@@ -590,7 +625,10 @@ function BuildingRow({ name, onRemove }: { name: string; onRemove: () => Promise
   }
 
   return (
-    <div className={`${ui.row} flex items-center gap-2`}>
+    <div className="flex items-center gap-2 px-3 py-2.5 text-sm">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+        <Building2 className="size-4" />
+      </span>
       <span className="mr-auto font-medium">{name}</span>
       <button
         onClick={() => {

@@ -4,7 +4,7 @@ import type { Db } from "../db/db.js";
 import { me } from "../lib/auth.js";
 import { CATEGORIES } from "../lib/catalog.js";
 import { monthRange, today, WEEKDAYS } from "../lib/dates.js";
-import { badRequest, clockTime, conflict, isoDate, notFound, parse, uuid } from "../lib/http.js";
+import { badRequest, clockTime, conflict, forbidden, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify, notifyAdmins } from "../lib/notify.js";
 import { acceptFile, DOCUMENT_TYPES, IMAGE_TYPES, removeUpload, uploadPath } from "../lib/uploads.js";
 import { saveProfileChanges } from "../services/profile.js";
@@ -17,6 +17,9 @@ const detailsSchema = z
     categories: z.array(z.enum(CATEGORIES)).min(1, "Pick at least one category").max(CATEGORIES.length),
     summary: z.string().trim().max(300),
     ratePerVisit: z.number().int().min(1, "Set a rate above ₹0").max(100_000),
+    categoryRates: z
+      .record(z.enum(CATEGORIES), z.number().int().min(1, "Set a rate above ₹0 for each service").max(100_000))
+      .refine((r) => Object.keys(r).length > 0, "Pick at least one service"),
   })
   .partial();
 
@@ -64,7 +67,7 @@ export function workerRoutes(db: Db) {
   router.get("/profile", async (req, res) => {
     const id = me(req).id;
     const [profile] = await db.query(
-      `SELECT u.name, h.slug, h.categories, h.summary, h.rate_per_visit AS "ratePerVisit", h.is_accepting AS "isAccepting",
+      `SELECT u.name, h.slug, h.categories, h.summary, h.rate_per_visit AS "ratePerVisit", h.category_rates AS "categoryRates", h.is_accepting AS "isAccepting",
               h.verification, h.verification_note AS "verificationNote", h.onboarded_at IS NOT NULL AS onboarded,
               '/uploads/photos/' || h.photo_file AS "photoUrl", ${WORK_HOURS_FIELDS}
        FROM helpers h JOIN users u ON u.id = h.user_id WHERE h.user_id = $1`,
@@ -229,6 +232,8 @@ export function workerRoutes(db: Db) {
       req.query,
     );
     if (to < from) throw badRequest("'to' must be on or after 'from'");
+    const [helper] = await db.query<{ verification: string }>("SELECT verification FROM helpers WHERE user_id = $1", [me(req).id]);
+    if (helper?.verification !== "verified") throw forbidden("Earnings open once the admin verifies you");
 
     const rows = await db.query(
       `SELECT b.id AS "bookingId", b.flat, b.plan, b.start_date AS "startDate", b.rate_per_visit AS rate, b.extras,

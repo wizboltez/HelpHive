@@ -14,7 +14,7 @@ import { weekSchedule, weekStart, WORK_HOURS_FIELDS } from "../services/schedule
 const HELPER_SELECT = `
   SELECT u.id, h.slug, u.name, h.categories, h.summary, u.building AS area,
          '/uploads/photos/' || h.photo_file AS "photoUrl",
-         h.rate_per_visit AS "ratePerVisit", h.verification, ${WORK_HOURS_FIELDS},
+         h.rate_per_visit AS "ratePerVisit", h.category_rates AS "categoryRates", h.verification, ${WORK_HOURS_FIELDS},
          coalesce(r.rating, 0) AS rating, coalesce(r.count, 0) AS "reviewCount",
          CASE WHEN l.on_leave THEN 'leave' WHEN h.is_accepting THEN 'available' ELSE 'booked' END AS status
   FROM helpers h

@@ -43,7 +43,7 @@ export function adminRoutes(db: Db) {
     );
     const helpers = await db.query(
       `SELECT u.id, u.name, u.email, u.phone, u.place, u.is_active AS "isActive", u.created_at AS "createdAt",
-              u.building, h.slug, h.categories, h.summary, h.rate_per_visit AS "ratePerVisit",
+              u.building, h.slug, h.categories, h.summary, h.rate_per_visit AS "ratePerVisit", h.category_rates AS "categoryRates",
               '/uploads/photos/' || h.photo_file AS "photoUrl", h.verification, h.verification_note AS "verificationNote",
               coalesce(json_agg(json_build_object('id', d.id, 'docType', d.doc_type, 'docLabel', d.doc_label,
                                                   'mimeType', d.mime_type, 'createdAt', d.created_at) ORDER BY d.created_at)
@@ -92,7 +92,7 @@ export function adminRoutes(db: Db) {
     const changes = await db.query(
       `SELECT c.id, c.changes, c.status, c.note, c.created_at AS "createdAt", c.reviewed_at AS "reviewedAt",
               json_build_object('id', u.id, 'name', u.name, 'slug', h.slug, 'categories', h.categories,
-                                'summary', h.summary, 'ratePerVisit', h.rate_per_visit,
+                                'summary', h.summary, 'ratePerVisit', h.rate_per_visit, 'categoryRates', h.category_rates,
                                 'photoUrl', '/uploads/photos/' || h.photo_file) AS current,
               coalesce((SELECT json_agg(json_build_object('label', s.label, 'price', s.price, 'unit', s.unit,
                                                           'isAvailable', s.is_available) ORDER BY s.label)

@@ -4,13 +4,51 @@
     {
       "name": "helphive-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 8080
     },
     {
       "name": "helphive-api",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "backend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "backend",
+        "run",
+        "dev"
+      ],
+      "port": 4000
+    },
+    {
+      "name": "helphive-web-live-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
+      "env": {
+        "API_PROXY_TARGET": "https://helphive-production-4ce9.up.railway.app"
+      },
+      "port": 8080
+    },
+    {
+      "name": "helphive-api-local-db",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "backend",
+        "run",
+        "dev"
+      ],
+      "env": {
+        "DATABASE_URL": ""
+      },
       "port": 4000
     }
   ]

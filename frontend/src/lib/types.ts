@@ -44,7 +44,10 @@ export type Helper = WorkHours & {
   summary: string;
   area: string | null;
   photoUrl: string | null;
+  /** The lowest of categoryRates: "from ₹X/visit". */
   ratePerVisit: number;
+  /** Rate per visit for each service offered, e.g. { Cooking: 150 }. */
+  categoryRates: Record<string, number>;
   rating: number;
   reviewCount: number;
   status: HelperStatus;
@@ -66,6 +69,7 @@ export type Quote = {
   days: string[];
   visits: number;
   ratePerVisit: number;
+  categories: { category: string; rate: number }[];
   base: number;
   extras: Extra[];
   fee: number;
@@ -83,6 +87,8 @@ export type Booking = {
   endTime: string;
   visits: number;
   ratePerVisit: number;
+  /** Services booked; ratePerVisit is the sum of their rates. */
+  categories: string[];
   extras: Extra[];
   total: number;
   status: BookingStatus;
@@ -129,6 +135,7 @@ export type ProfileChanges = {
   categories?: string[];
   summary?: string;
   ratePerVisit?: number;
+  categoryRates?: Record<string, number>;
   services?: ServiceDraft[];
   photoFile?: string;
 };
@@ -163,6 +170,7 @@ export type WorkerProfile = WorkHours & {
   categories: string[];
   summary: string;
   ratePerVisit: number;
+  categoryRates: Record<string, number>;
   isAccepting: boolean;
   verification: "pending" | "verified" | "rejected";
   verificationNote: string | null;

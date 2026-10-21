@@ -11,33 +11,46 @@ import { Avatar, Empty, ui } from "./Page";
 type SaveResult = { queued: boolean; message: string };
 const resultMessage = (r: SaveResult) => r.message;
 
-/** Name, categories, about and rate. */
+/** Name, services with a rate for each, and about. */
 export function DetailsForm({ profile, submitLabel = "Save details", onSaved }: { profile: WorkerProfile; submitLabel?: string; onSaved?: () => void }) {
   const [form, setForm] = useState({
     name: profile.name,
-    categories: profile.categories,
     summary: profile.summary,
-    rate: profile.ratePerVisit ? String(profile.ratePerVisit) : "",
+    // Service → rate as typed. Older profiles without per-service rates start from their single rate.
+    rates: Object.fromEntries(
+      profile.categories.map((c) => {
+        const rate = profile.categoryRates[c] ?? profile.ratePerVisit;
+        return [c, rate ? String(rate) : ""];
+      }),
+    ) as Record<string, string>,
   });
-  const rate = Number(form.rate);
+  const categories = Object.keys(form.rates);
+  const rates = Object.fromEntries(categories.map((c) => [c, Number(form.rates[c])]));
+  const missingRate = categories.find((c) => !Number.isInteger(rates[c]) || rates[c]! < 1);
   const problem = !form.name.trim()
     ? "Enter your name"
-    : form.categories.length === 0
+    : categories.length === 0
       ? "Pick at least one thing you do"
-      : !Number.isInteger(rate) || rate < 1
-        ? "Set a rate per visit (in whole rupees)"
+      : missingRate
+        ? `Set your rate per visit for ${missingRate} (in whole rupees)`
         : null;
 
   // Only send what changed, so the admin reviews just the real edits.
+  const ratesChanged =
+    categories.length !== profile.categories.length || categories.some((c) => rates[c] !== profile.categoryRates[c]);
   const changes = {
     ...(form.name.trim() !== profile.name && { name: form.name.trim() }),
-    ...(form.categories.join() !== profile.categories.join() && { categories: form.categories }),
     ...(form.summary.trim() !== profile.summary && { summary: form.summary.trim() }),
-    ...(rate !== profile.ratePerVisit && { ratePerVisit: rate }),
+    ...(ratesChanged && { categoryRates: rates }),
   };
   const unchanged = Object.keys(changes).length === 0;
 
   const save = useAction(() => api<SaveResult>("/worker/profile", { method: "PATCH", body: changes }), resultMessage);
+  const toggle = (c: string) =>
+    setForm((f) => {
+      const { [c]: removed, ...rest } = f.rates;
+      return { ...f, rates: removed === undefined ? { ...f.rates, [c]: "" } : rest };
+    });
 
   return (
     <form
@@ -54,13 +67,32 @@ export function DetailsForm({ profile, submitLabel = "Save details", onSaved }: 
       </label>
       <div>
         <span className={ui.eyebrow}>What you do · pick all that apply</span>
-        <CategoryPicker
-          value={form.categories}
-          onToggle={(c) =>
-            setForm((f) => ({ ...f, categories: f.categories.includes(c) ? f.categories.filter((x) => x !== c) : [...f.categories, c] }))
-          }
-        />
+        <CategoryPicker value={categories} onToggle={toggle} />
       </div>
+      {categories.length > 0 && (
+        <div>
+          <span className={ui.eyebrow}>Your rate per visit for each</span>
+          <div className="mt-1 space-y-1.5">
+            {categories.map((c) => (
+              <label key={c} className={`${ui.row} flex items-center gap-3`}>
+                <span className="flex-1 font-medium">{c}</span>
+                <span className="flex items-center gap-1 rounded-lg bg-card px-2 py-1 ring-1 ring-line">
+                  <span className="text-ink-soft">₹</span>
+                  <input
+                    inputMode="numeric"
+                    value={form.rates[c]}
+                    onChange={(e) => setForm((f) => ({ ...f, rates: { ...f.rates, [c]: e.target.value.replace(/\D/g, "").slice(0, 6) } }))}
+                    placeholder="400"
+                    aria-label={`Rate per visit for ${c}`}
+                    className="w-20 bg-transparent font-mono outline-none"
+                  />
+                </span>
+                <span className="text-xs text-ink-soft">/visit</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <label className="block">
         <span className={ui.eyebrow}>About you</span>
         <textarea
@@ -72,19 +104,6 @@ export function DetailsForm({ profile, submitLabel = "Save details", onSaved }: 
           className={ui.field}
         />
         <span className="mt-1 block text-right font-mono text-[10px] text-ink-soft">{form.summary.length}/300</span>
-      </label>
-      <label className="block max-w-48">
-        <span className={ui.eyebrow}>Rate per visit</span>
-        <div className="relative mt-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-soft">₹</span>
-          <input
-            inputMode="numeric"
-            value={form.rate}
-            onChange={(e) => setForm({ ...form, rate: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-            placeholder="400"
-            className={`${ui.field} mt-0 pl-7`}
-          />
-        </div>
       </label>
       {problem && <p className="text-xs text-ink-soft">{problem}</p>}
       <button disabled={!!problem || save.isPending || (unchanged && !onSaved)} className={ui.darkButton}>

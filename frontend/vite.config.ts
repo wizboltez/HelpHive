@@ -14,8 +14,8 @@ export default defineConfig({
   vite: {
     server: {
       proxy: {
-        "/api": { target: apiTarget, xfwd: true },
-        "/uploads": { target: apiTarget, xfwd: true },
+        "/api": { target: apiTarget, xfwd: true, changeOrigin: true },
+        "/uploads": { target: apiTarget, xfwd: true, changeOrigin: true },
       },
       // Let teammates reach the dev server through a tunnel (see README → Testing with teammates).
       allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok.app"],

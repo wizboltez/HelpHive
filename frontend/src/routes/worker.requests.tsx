@@ -10,7 +10,7 @@ import type { Booking, WorkerProfile } from "@/lib/types";
 export const Route = createFileRoute("/worker/requests")({
   head: () => ({ meta: [{ title: "House requests — HelpHive helper" }] }),
   component: () => (
-    <AppShell role="worker">
+    <AppShell role="worker" verifiedOnly>
       <WorkerRequests />
     </AppShell>
   ),
@@ -39,6 +39,7 @@ function WorkerRequests() {
             <div className="min-w-0 flex-1">
               <p className="font-medium">
                 {r.residentName} · {r.flat} · {planLabel[r.plan]}
+                {r.categories.length > 0 && ` · ${r.categories.join(" + ")}`}
               </p>
               <p className="font-mono text-xs text-ink-soft">
                 {daysLabel(r.days)} · {time12(r.startTime)}–{time12(r.endTime)} · from {dateLabel(r.startDate)} · {r.visits} visits ·{" "}

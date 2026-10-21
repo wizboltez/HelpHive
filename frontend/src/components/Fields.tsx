@@ -3,6 +3,7 @@ import { useState, type InputHTMLAttributes } from "react";
 import { useMeta } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { ui } from "./Page";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 /** Password box with an eye button to show or hide what's typed. */
 export function PasswordInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
@@ -53,16 +54,21 @@ export function FlatSelect({ building, value, onChange }: { building: string; va
   if (!flats) {
     return <input required value={value} onChange={(e) => onChange(e.target.value)} placeholder="402" className={ui.field} />;
   }
+  // A styled list instead of the browser's own, so a long list of flats scrolls without a scrollbar.
   return (
-    <select required value={value} onChange={(e) => onChange(e.target.value)} className={ui.field}>
-      <option value="" disabled>
-        Choose
-      </option>
-      {value && !flats.includes(value) && <option>{value}</option>}
-      {flats.map((f) => (
-        <option key={f}>{f}</option>
-      ))}
-    </select>
+    <Select required value={value} onValueChange={onChange}>
+      <SelectTrigger className={`${ui.field} h-auto border-0 text-left`}>
+        <SelectValue placeholder="Choose" />
+      </SelectTrigger>
+      <SelectContent className="max-h-64 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {value && !flats.includes(value) && <SelectItem value={value}>{value}</SelectItem>}
+        {flats.map((f) => (
+          <SelectItem key={f} value={f}>
+            {f}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

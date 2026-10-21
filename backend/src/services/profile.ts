@@ -1,4 +1,5 @@
 import type { Db } from "../db/db.js";
+import { CATEGORIES } from "../lib/catalog.js";
 import { notifyAdmins } from "../lib/notify.js";
 import { removeUpload } from "../lib/uploads.js";
 
@@ -8,12 +9,20 @@ export type ProfileChanges = {
   categories?: string[];
   summary?: string;
   ratePerVisit?: number;
+  /** Rate for each service offered. Sets the categories, and ratePerVisit to the lowest rate. */
+  categoryRates?: Record<string, number>;
   services?: { label: string; price: number; unit: "visit" | "event"; isAvailable: boolean }[];
   photoFile?: string;
 };
 
 /** Writes changes straight to the live profile. */
 export async function applyProfileChanges(tx: Db, helperId: string, changes: ProfileChanges) {
+  const rates = changes.categoryRates;
+  if (rates) {
+    // In catalog order: the stored JSON doesn't keep the order they were picked in.
+    const categories = CATEGORIES.filter((c) => c in rates);
+    changes = { ...changes, categories, ratePerVisit: Math.min(...Object.values(rates)) };
+  }
   if (changes.name !== undefined) {
     await tx.query("UPDATE users SET name = $2 WHERE id = $1", [helperId, changes.name]);
   }
@@ -22,6 +31,14 @@ export async function applyProfileChanges(tx: Db, helperId: string, changes: Pro
             rate_per_visit = coalesce($4, rate_per_visit)
      WHERE user_id = $1`,
     [helperId, changes.categories ?? null, changes.summary ?? null, changes.ratePerVisit ?? null],
+  );
+  // One rate per offered service: the new ones, else the old one, else the single rate per visit.
+  await tx.query(
+    `UPDATE helpers SET category_rates = (
+       SELECT coalesce(jsonb_object_agg(c, coalesce(($2::jsonb ->> c)::int, (category_rates ->> c)::int, rate_per_visit)), '{}')
+       FROM unnest(categories) c)
+     WHERE user_id = $1`,
+    [helperId, JSON.stringify(rates ?? {})],
   );
   if (changes.services) {
     await tx.query("DELETE FROM helper_services WHERE helper_id = $1", [helperId]);

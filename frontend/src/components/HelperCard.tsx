@@ -40,6 +40,7 @@ export function HelperCard({ helper, delay = 0 }: { helper: Helper; delay?: numb
       </p>
       <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-xs text-ink-soft">
         <span className="font-mono">
+          {Object.keys(helper.categoryRates).length > 1 && "from "}
           {rupees(helper.ratePerVisit)}/visit{helper.area && ` · ${helper.area}`}
         </span>
         <span className="transition-colors group-hover:text-accent">View profile →</span>

@@ -150,6 +150,8 @@ function BookingForm({ helper }: { helper: Profile }) {
     days: defaultDays(helper.workDays),
     startTime: helper.workStart,
     endTime: helper.workEnd < addHours(helper.workStart, 2) ? helper.workEnd : addHours(helper.workStart, 2),
+    // The services this booking is for; their rates add up to the rate per visit.
+    categories: helper.categories.filter((c) => helper.categoryRates[c]).slice(0, 1),
     serviceIds: [] as string[],
     notes: "",
   });
@@ -170,7 +172,7 @@ function BookingForm({ helper }: { helper: Profile }) {
   const quoteError = quote.error?.message;
 
   const book = useAction(() => api("/bookings", { method: "POST", body }), "Request sent — you'll be notified when it's accepted");
-  const canBook = helper.status !== "booked" && quoteData;
+  const canBook = helper.status !== "booked" && form.categories.length > 0 && quoteData;
 
   return (
     <form
@@ -193,6 +195,39 @@ function BookingForm({ helper }: { helper: Profile }) {
             {plan === "one_time" ? "One-time" : plan === "weekly" ? "Weekly" : "Monthly"}
           </button>
         ))}
+      </div>
+
+      <div className="mt-3">
+        <span className={ui.eyebrow}>Services · pick one or more</span>
+        <div className="mt-1 grid grid-cols-1 gap-1.5">
+          {helper.categories
+            .filter((c) => helper.categoryRates[c])
+            .map((c) => {
+              const on = form.categories.includes(c);
+              return (
+                <button
+                  type="button"
+                  key={c}
+                  aria-pressed={on}
+                  onClick={() => set("categories", toggle(form.categories, c))}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm ring-1 transition-colors ${
+                    on ? "bg-accent-soft ring-accent" : "bg-paper ring-line hover:ring-ink-soft"
+                  }`}
+                >
+                  <span
+                    className={`grid size-4 shrink-0 place-items-center rounded border text-[10px] ${
+                      on ? "border-accent bg-accent text-paper" : "border-line bg-card"
+                    }`}
+                  >
+                    {on && "✓"}
+                  </span>
+                  <span className="flex-1 font-medium">{c}</span>
+                  <span className="font-mono text-xs text-ink-soft">{rupees(helper.categoryRates[c]!)}/visit</span>
+                </button>
+              );
+            })}
+        </div>
+        {form.categories.length === 0 && <p className="mt-1.5 text-[11px] text-absent">Choose at least one service.</p>}
       </div>
 
       <label className="mt-3 block">
@@ -238,7 +273,7 @@ function BookingForm({ helper }: { helper: Profile }) {
 
       {helper.services.some((s) => s.isAvailable) && (
         <div className="mt-3 space-y-1.5">
-          <span className={ui.eyebrow}>Add services</span>
+          <span className={ui.eyebrow}>Add extras</span>
           {helper.services
             .filter((s) => s.isAvailable)
             .map((s) => (
@@ -264,9 +299,14 @@ function BookingForm({ helper }: { helper: Profile }) {
       </label>
 
       <div className="mt-4 space-y-2.5 border-t border-line pt-3 text-sm">
-        {quoteError && <p className="text-xs text-absent">{quoteError}</p>}
-        {quoteData && (
+        {quoteError && form.categories.length > 0 && <p className="text-xs text-absent">{quoteError}</p>}
+        {quoteData && form.categories.length > 0 && (
           <>
+            {quoteData.categories.length > 1 && (
+              <p className="text-xs text-ink-soft">
+                {quoteData.categories.map((c) => `${c.category} ${rupees(c.rate)}`).join(" + ")} = {rupees(quoteData.ratePerVisit)}/visit
+              </p>
+            )}
             <div className="flex justify-between">
               <span className="text-ink-soft">
                 {quoteData.visits} visit{quoteData.visits === 1 ? "" : "s"} × {rupees(quoteData.ratePerVisit)}

@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Clock, ExternalLink } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Clock } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DetailsForm, DocumentUploader, PhotoUploader, ServicesEditor } from "@/components/HelperForms";
@@ -34,6 +34,7 @@ const fieldNames: Record<keyof ProfileChanges, string> = {
   categories: "categories",
   summary: "about you",
   ratePerVisit: "rate",
+  categoryRates: "rates",
   services: "extra services",
   photoFile: "photo",
 };
@@ -56,11 +57,6 @@ function Profile() {
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {verified ? <Chip tone="available">Verified</Chip> : profile.verification === "rejected" ? <Chip tone="absent">Not approved</Chip> : <Chip tone="booked">Awaiting verification</Chip>}
-        {verified && (
-          <Link to="/helpers/$helperId" params={{ helperId: profile.slug }} className={`${ui.ghostButton} inline-flex items-center gap-1.5`}>
-            View public profile <ExternalLink className="size-3" />
-          </Link>
-        )}
       </div>
       {profile.verificationNote && profile.verification !== "verified" && (
         <p className={`${ui.row} mt-3 max-w-2xl`}>Admin note: {profile.verificationNote}</p>
@@ -83,7 +79,7 @@ function Profile() {
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Section title="Details">
-          <DetailsForm key={JSON.stringify([profile.name, profile.categories, profile.summary, profile.ratePerVisit])} profile={profile} submitLabel={verified ? "Send for approval" : "Save details"} />
+          <DetailsForm key={JSON.stringify([profile.name, profile.categories, profile.summary, profile.categoryRates])} profile={profile} submitLabel={verified ? "Send for approval" : "Save details"} />
         </Section>
         <div className="space-y-6">
           <Availability profile={profile} />

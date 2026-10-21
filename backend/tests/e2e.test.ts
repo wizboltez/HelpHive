@@ -202,8 +202,10 @@ describe("HelpHive end to end", () => {
     const [doc] = pending.body[0].documents;
     expect((await admin.get(`/api/admin/documents/${doc.id}/file`)).status).toBe(200);
 
+    expect((await sunita.get("/api/worker/earnings")).status).toBe(403); // locked until verified
     const verified = await admin.post(`/api/admin/helpers/${sunitaId}/verification`, { status: "verified" });
     expect(verified.body.verification).toBe("verified");
+    expect((await sunita.get("/api/worker/earnings")).status).toBe(200);
 
     expect(await notificationTitles(sunita)).toContain("You're verified! Residents can now book you.");
   });
@@ -230,6 +232,15 @@ describe("HelpHive end to end", () => {
     await admin.post(`/api/admin/profile-changes/${next.id}`, { status: "approved" });
     const live = (await meera.get("/api/helpers/sunita-devi")).body;
     expect(live).toMatchObject({ summary: "Chapatis, event food and babysitting", ratePerVisit: 400 });
+    expect(live.categoryRates).toEqual({ Housekeeping: 400, Cooking: 400 });
+
+    // A rate per service; the card shows the lowest.
+    expect((await sunita.patch("/api/worker/profile", { categoryRates: { Cooking: 0 } })).status).toBe(400);
+    await sunita.patch("/api/worker/profile", { categoryRates: { Housekeeping: 400, Cooking: 500 } });
+    const [rates] = (await admin.get("/api/admin/profile-changes")).body;
+    await admin.post(`/api/admin/profile-changes/${rates.id}`, { status: "approved" });
+    const priced = (await meera.get("/api/helpers/sunita-devi")).body;
+    expect(priced).toMatchObject({ categories: ["Housekeeping", "Cooking"], categoryRates: { Housekeeping: 400, Cooking: 500 }, ratePerVisit: 400 });
 
     // Availability isn't reviewed.
     expect((await sunita.put("/api/worker/availability", { isAccepting: true })).body.isAccepting).toBe(true);
@@ -254,23 +265,30 @@ describe("HelpHive end to end", () => {
     // Tue 6 Oct → Mon 12 Oct on weekdays = 5 visits
     const quote = await meera.post("/api/bookings/quote", {
       helperId: sunitaId, plan: "weekly", startDate: "2026-10-06", startTime: "08:00", endTime: "10:30",
-      serviceIds: [chapatiServiceId, eventServiceId],
+      categories: ["Housekeeping"], serviceIds: [chapatiServiceId, eventServiceId],
     });
     expect(quote.body).toMatchObject({ visits: 5, base: 2000, fee: 49, total: 2000 + 900 + 1200 + 49 });
 
+    // Several services add up their rates; at least one must be chosen, and only ones the helper offers.
+    const slot = { helperId: sunitaId, plan: "weekly", startDate: "2026-10-06", startTime: "08:00", endTime: "10:30" };
+    const both = await meera.post("/api/bookings/quote", { ...slot, categories: ["Housekeeping", "Cooking"] });
+    expect(both.body).toMatchObject({ ratePerVisit: 900, base: 4500, categories: [{ category: "Housekeeping", rate: 400 }, { category: "Cooking", rate: 500 }] });
+    expect((await meera.post("/api/bookings/quote", { ...slot, categories: [] })).status).toBe(400);
+    expect((await meera.post("/api/bookings/quote", { ...slot, categories: ["Driving"] })).status).toBe(400);
+
     const past = await meera.post("/api/bookings/quote", {
-      helperId: sunitaId, plan: "weekly", startDate: "2026-10-01", startTime: "08:00", endTime: "10:30",
+      helperId: sunitaId, plan: "weekly", startDate: "2026-10-01", startTime: "08:00", endTime: "10:30", categories: ["Cooking"],
     });
     expect(past.status).toBe(400);
   });
 
   it("runs the booking request → accept flow and prevents double-booking", async () => {
-    const slot = { helperId: sunitaId, plan: "weekly", startDate: "2026-10-06", startTime: "08:00", endTime: "10:30" };
+    const slot = { helperId: sunitaId, plan: "weekly", startDate: "2026-10-06", startTime: "08:00", endTime: "10:30", categories: ["Housekeeping"] };
     expect((await sunita.post("/api/bookings", slot)).status).toBe(403);
 
     const mine = await meera.post("/api/bookings", { ...slot, serviceIds: [chapatiServiceId] });
     expect(mine.status).toBe(201);
-    expect(mine.body).toMatchObject({ status: "pending", flat: "Tower A · A-402", total: 2000 + 900 + 49, cancellable: true });
+    expect(mine.body).toMatchObject({ status: "pending", flat: "Tower A · A-402", total: 2000 + 900 + 49, cancellable: true, categories: ["Housekeeping"] });
     bookingId = mine.body.id;
 
     const other = await ravi.post("/api/bookings", { ...slot, startTime: "09:00", endTime: "11:00" });
@@ -303,7 +321,7 @@ describe("HelpHive end to end", () => {
     expect((await meera.get("/api/helpers/sunita-devi")).body).toMatchObject(hours);
 
     const quote = (body: object) =>
-      meera.post("/api/bookings/quote", { helperId: sunitaId, plan: "one_time", startDate: "2026-10-07", ...body });
+      meera.post("/api/bookings/quote", { helperId: sunitaId, plan: "one_time", startDate: "2026-10-07", categories: ["Cooking"], ...body });
     expect((await quote({ startTime: "16:00", endTime: "18:00" })).status).toBe(400); // ends after 17:00
     expect((await quote({ startDate: "2026-10-11", startTime: "11:00", endTime: "12:00" })).status).toBe(400); // Sunday off
     expect((await quote({ startTime: "11:00", endTime: "12:00" })).status).toBe(200);
@@ -440,7 +458,7 @@ describe("HelpHive end to end", () => {
 
   it("completes finished plans and expires unanswered requests", async () => {
     const late = await meera.post("/api/bookings", {
-      helperId: sunitaId, plan: "one_time", startDate: "2026-10-14", startTime: "15:00", endTime: "17:00",
+      helperId: sunitaId, plan: "one_time", startDate: "2026-10-14", startTime: "15:00", endTime: "17:00", categories: ["Cooking"],
     });
     expect(late.status).toBe(201);
 
