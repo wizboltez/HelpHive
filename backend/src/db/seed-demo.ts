@@ -60,7 +60,11 @@ const usernameOf = (name: string) => `demo.${slugOf(name).replace(/-/g, "")}`;
 const db = await connect();
 try {
   if (process.argv[2] === "remove") {
-    const removed = await db.query(`DELETE FROM users WHERE email LIKE $1 RETURNING username`, [`%@${DOMAIN}`]);
+    // Their bookings and complaints block deleting the accounts (see seed-demo-activity.ts remove).
+    const demo = `(SELECT id FROM users WHERE email LIKE '%@${DOMAIN}')`;
+    await db.query(`DELETE FROM complaints WHERE raised_by IN ${demo} OR helper_id IN ${demo}`);
+    await db.query(`DELETE FROM bookings WHERE resident_id IN ${demo} OR helper_id IN ${demo}`);
+    const removed =await db.query(`DELETE FROM users WHERE email LIKE $1 RETURNING username`, [`%@${DOMAIN}`]);
     console.log(`Removed ${removed.length} demo accounts`);
   } else {
     // Keep the password from an earlier run so existing demo logins still work.
