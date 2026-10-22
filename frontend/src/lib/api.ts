@@ -64,8 +64,17 @@ export async function api<T = unknown>(path: string, { method = "GET", body, for
   }
   if (res.status === 204) return undefined as T;
 
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(data?.error?.message ?? "Something went wrong", res.status, data?.error?.details);
+  const text = await res.text().catch(() => "");
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    // Not JSON, e.g. "Too many requests" from the rate limiter. Show short plain text, not HTML pages.
+  }
+  if (!res.ok) {
+    const plain = !data && text.length < 200 && !text.trimStart().startsWith("<") ? text.trim() : "";
+    throw new ApiError(data?.error?.message ?? (plain || "Something went wrong"), res.status, data?.error?.details);
+  }
   return data as T;
 }
 
