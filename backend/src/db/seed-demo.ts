@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hashPassword } from "../lib/auth.js";
 import { connect } from "./db.js";
 
 /**
- * Adds 10 verified demo helpers for presentations, all sharing one password.
+ * Adds 10 verified demo helpers and 10 residents for presentations, all sharing one password.
  *   npx tsx --env-file=.env src/db/seed-demo.ts           add them (skips ones that exist)
  *   npx tsx --env-file=.env src/db/seed-demo.ts remove    delete them again
  * Logins are written to .data/demo-helpers.txt (git-ignored).
@@ -38,16 +38,34 @@ const DEMOS: Demo[] = [
   { name: "Neha Kulkarni", building: "tower B", categories: ["Pet care"], rate: 200, summary: "Dog walking, feeding and pet sitting while you travel.", workDays: ALL_WEEK, hours: ["06:00", "21:00"], extras: [{ label: "Pet sitting (full day)", price: 900, unit: "event" }] },
 ];
 
-const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+// Flats fall inside each tower's numbering (tower A 101–120, B 201–220, …).
+const RESIDENTS: { name: string; building: string; flat: string }[] = [
+  { name: "Rohan Deshmukh", building: "tower A", flat: "104" },
+  { name: "Sneha Joshi", building: "tower A", flat: "112" },
+  { name: "Amit Sharma", building: "tower B", flat: "203" },
+  { name: "Pooja Nair", building: "tower B", flat: "215" },
+  { name: "Vikram Patil", building: "tower C", flat: "301" },
+  { name: "Anjali Mehta", building: "tower C", flat: "309" },
+  { name: "Siddharth Rao", building: "tower C", flat: "318" },
+  { name: "Meera Kapoor", building: "tower D", flat: "402" },
+  { name: "Arjun Bhosale", building: "tower D", flat: "407" },
+  { name: "Divya Menon", building: "tower D", flat: "419" },
+];
+
+const LOGINS_FILE = ".data/demo-helpers.txt";
+
+const slugOf =(name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const usernameOf = (name: string) => `demo.${slugOf(name).replace(/-/g, "")}`;
 
 const db = await connect();
 try {
   if (process.argv[2] === "remove") {
     const removed = await db.query(`DELETE FROM users WHERE email LIKE $1 RETURNING username`, [`%@${DOMAIN}`]);
-    console.log(`Removed ${removed.length} demo helpers`);
+    console.log(`Removed ${removed.length} demo accounts`);
   } else {
-    const password = `Hive-${randomBytes(4).toString("hex")}`;
+    // Keep the password from an earlier run so existing demo logins still work.
+    const previous = existsSync(LOGINS_FILE) ? readFileSync(LOGINS_FILE, "utf8").match(/^Password for all: (\S+)$/m)?.[1] : undefined;
+    const password = previous ?? `Hive-${randomBytes(4).toString("hex")}`;
     const passwordHash = await hashPassword(password);
     const [{ has_rates }] = await db.query<{ has_rates: boolean }>(
       `SELECT EXISTS (SELECT 1 FROM information_schema.columns
@@ -82,17 +100,31 @@ try {
           ]);
         }
       });
-      created.push(`${d.name.padEnd(16)} ${username}`);
+      created.push(username);
     }
 
-    if (created.length) {
-      mkdirSync(".data", { recursive: true });
-      writeFileSync(
-        ".data/demo-helpers.txt",
-        `HelpHive demo helpers (log in with the username)\nPassword for all: ${password}\n\n${created.join("\n")}\n`,
+    for (const [i, r] of RESIDENTS.entries()) {
+      const username = usernameOf(r.name);
+      const [exists] = await db.query("SELECT 1 FROM users WHERE lower(username) = $1", [username]);
+      if (exists) continue;
+      await db.query(
+        `INSERT INTO users (role, name, username, email, phone, building, place, password_hash)
+         VALUES ('resident', $1, $2, $3, $4, $5, $6, $7)`,
+        [r.name, username, `${username}@${DOMAIN}`, `90000001${String(i + 1).padStart(2, "0")}`, r.building, r.flat, passwordHash],
       );
+      created.push(username);
     }
-    console.log(`Created ${created.length} demo helpers${created.length ? "; logins in .data/demo-helpers.txt" : ""}`);
+
+    mkdirSync(".data", { recursive: true });
+    const list = (title: string, rows: string[]) => `${title}\n${rows.join("\n")}\n`;
+    writeFileSync(
+      LOGINS_FILE,
+      `HelpHive demo accounts (log in with the username)\nPassword for all: ${password}\n\n` +
+        list("Helpers", DEMOS.map((d) => `${d.name.padEnd(16)} ${usernameOf(d.name)}`)) +
+        "\n" +
+        list("Residents", RESIDENTS.map((r) => `${r.name.padEnd(16)} ${usernameOf(r.name).padEnd(22)} ${r.building} · ${r.flat}`)),
+    );
+    console.log(`Created ${created.length} demo accounts; logins in ${LOGINS_FILE}`);
   }
 } finally {
   await db.close();
