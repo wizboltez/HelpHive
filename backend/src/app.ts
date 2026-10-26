@@ -26,7 +26,14 @@ export function createApp(db: Db) {
   app.use(express.json({ limit: "100kb" }));
 
   const auth = requireAuth(db);
-  const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.authRateLimit, standardHeaders: true });
+  // Guards against password guessing: only failed attempts count, so switching accounts doesn't lock you out.
+  const authLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: config.authRateLimit,
+    standardHeaders: true,
+    skipSuccessfulRequests: true,
+    message: { error: { code: "rate_limited", message: "Too many attempts. Please wait 15 minutes and try again." } },
+  });
 
   app.get("/api/health", async (_req, res) => {
     await db.query("SELECT 1");
