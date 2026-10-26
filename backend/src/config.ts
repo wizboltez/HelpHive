@@ -9,13 +9,13 @@ const env = process.env;
 const isProduction = env.NODE_ENV === "production";
 
 if (isProduction && !env.JWT_SECRET) throw new Error("JWT_SECRET must be set in production");
+if (isProduction && !env.DATABASE_URL) throw new Error("DATABASE_URL must be set in production");
 
 export const config = {
   port: Number(env.PORT ?? 4000),
   /** Set to use a real PostgreSQL server; otherwise an embedded PGlite database is used. */
   databaseUrl: env.DATABASE_URL,
   pgliteDir: env.PGLITE_DIR ?? ".data/pglite",
-  uploadDir: env.UPLOAD_DIR ?? ".data/uploads",
   jwtSecret: env.JWT_SECRET ?? "dev-secret-change-me",
   tokenTtl: env.TOKEN_TTL ?? "7d",
   bcryptRounds: 10,
@@ -39,5 +39,5 @@ export const config = {
   convenienceFee: Number(env.CONVENIENCE_FEE ?? 49),
   cancelWindowHours: Number(env.CANCEL_WINDOW_HOURS ?? 24),
   maxDoorCodeAttempts: Number(env.MAX_DOOR_CODE_ATTEMPTS ?? 5),
-  maxUploadMb: Number(env.MAX_UPLOAD_MB ?? 5),
+  maxUploadMb: Number(env.MAX_UPLOAD_MB ?? 4),
 };

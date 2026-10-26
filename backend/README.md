@@ -222,5 +222,5 @@ tests/
 ## Not included yet
 These need outside services or accounts, so they're left for later:
 - password reset by email or SMS OTP, and SMS or push notifications (needs an email/SMS provider)
-- cloud file storage such as S3 (files are stored on the server's disk under `UPLOAD_DIR`)
+- cloud file storage such as S3 (files are stored in the database, in the `uploads` table)
 - in-app payments (out of scope by decision)

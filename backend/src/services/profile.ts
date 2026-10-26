@@ -52,7 +52,7 @@ export async function applyProfileChanges(tx: Db, helperId: string, changes: Pro
   if (changes.photoFile) {
     const [old] = await tx.query("SELECT photo_file FROM helpers WHERE user_id = $1", [helperId]);
     await tx.query("UPDATE helpers SET photo_file = $2 WHERE user_id = $1", [helperId, changes.photoFile]);
-    await removeUpload("photos", old.photo_file);
+    await removeUpload(tx, "photos", old.photo_file);
   }
 }
 
@@ -77,7 +77,7 @@ export async function saveProfileChanges(db: Db, helperId: string, changes: Prof
   );
   if (pending) {
     // A newer photo replaces one that was still waiting for approval.
-    if (changes.photoFile && pending.changes.photoFile) await removeUpload("photos", pending.changes.photoFile);
+    if (changes.photoFile && pending.changes.photoFile) await removeUpload(db, "photos", pending.changes.photoFile);
     await db.query("UPDATE profile_changes SET changes = $2::jsonb, created_at = now() WHERE id = $1", [
       pending.id,
       JSON.stringify({ ...pending.changes, ...changes }),

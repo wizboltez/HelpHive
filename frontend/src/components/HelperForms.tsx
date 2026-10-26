@@ -211,7 +211,7 @@ export function PhotoUploader({ profile }: { profile: WorkerProfile }) {
             }}
           />
         </label>
-        <p className="mt-1.5 text-[11px] text-ink-soft">A clear photo of your face. JPG, PNG or WEBP, up to 5 MB.</p>
+        <p className="mt-1.5 text-[11px] text-ink-soft">A clear photo of your face. JPG, PNG or WEBP, up to 4 MB.</p>
       </div>
     </div>
   );
@@ -291,7 +291,7 @@ export function DocumentUploader({ profile }: { profile: WorkerProfile }) {
           <button disabled={!ready || upload.isPending} className={ui.darkButton}>
             {upload.isPending ? "Uploading…" : "Upload document"}
           </button>
-          <p className="text-[11px] text-ink-soft">PDF or image, up to 5 MB. Only the society admin can see these.</p>
+          <p className="text-[11px] text-ink-soft">PDF or image, up to 4 MB. Only the society admin can see these.</p>
         </div>
       </form>
     </div>

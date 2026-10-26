@@ -6,7 +6,7 @@ import { config } from "./config.js";
 import type { Db } from "./db/db.js";
 import { requireAuth, requireRole } from "./lib/auth.js";
 import { errorHandler } from "./lib/http.js";
-import { uploadPath } from "./lib/uploads.js";
+import { sendUpload } from "./lib/uploads.js";
 import { adminRoutes } from "./routes/admin.js";
 import { authRoutes } from "./routes/auth.js";
 import { bookingRoutes } from "./routes/bookings.js";
@@ -39,7 +39,7 @@ export function createApp(db: Db) {
     await db.query("SELECT 1");
     res.json({ status: "ok" });
   });
-  app.use("/uploads/photos", express.static(uploadPath("photos"), { fallthrough: false, dotfiles: "allow" }));
+  app.get("/uploads/photos/:name", (req, res) => sendUpload(db, res, "photos", req.params.name));
 
   app.use("/api/auth/login", authLimit);
   app.use("/api/auth/register", authLimit);

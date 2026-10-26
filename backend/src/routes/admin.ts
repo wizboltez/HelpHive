@@ -6,7 +6,7 @@ import { today, weekdayOf } from "../lib/dates.js";
 import { expandFlats } from "../lib/flats.js";
 import { badRequest, conflict, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
-import { removeUpload, uploadPath } from "../lib/uploads.js";
+import { removeUpload, sendUpload } from "../lib/uploads.js";
 import { applyProfileChanges, type ProfileChanges } from "../services/profile.js";
 import { BOOKING_SELECT, refreshStatuses, type Booking } from "../services/bookings.js";
 import { COMPLAINT_FIELDS } from "./complaints.js";
@@ -64,7 +64,7 @@ export function adminRoutes(db: Db) {
       parse(uuid, req.params.id),
     ]);
     if (!doc) throw notFound("Document");
-    res.type(doc.mime_type).sendFile(uploadPath("documents", doc.file_name), { dotfiles: "allow" });
+    await sendUpload(db, res, "documents", doc.file_name);
   });
 
   router.post("/helpers/:id/verification", async (req, res) => {
@@ -120,7 +120,7 @@ export function adminRoutes(db: Db) {
       if (input.status === "approved") await applyProfileChanges(tx, change.helper_id, change.changes);
       return change as { helper_id: string; changes: ProfileChanges };
     });
-    if (input.status === "rejected") await removeUpload("photos", change.changes.photoFile ?? null);
+    if (input.status === "rejected") await removeUpload(db, "photos", change.changes.photoFile ?? null);
 
     const title = input.status === "approved" ? "Your profile changes are live" : "Your profile changes were not approved";
     await notify(db, change.helper_id, title, input.note, "/worker/profile");

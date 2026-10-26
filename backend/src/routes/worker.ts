@@ -6,7 +6,7 @@ import { CATEGORIES } from "../lib/catalog.js";
 import { monthRange, today, WEEKDAYS } from "../lib/dates.js";
 import { badRequest, clockTime, conflict, forbidden, isoDate, notFound, parse, uuid } from "../lib/http.js";
 import { notify, notifyAdmins } from "../lib/notify.js";
-import { acceptFile, DOCUMENT_TYPES, IMAGE_TYPES, removeUpload, uploadPath } from "../lib/uploads.js";
+import { acceptFile, DOCUMENT_TYPES, IMAGE_TYPES, removeUpload, sendUpload } from "../lib/uploads.js";
 import { saveProfileChanges } from "../services/profile.js";
 import { WORK_HOURS_FIELDS } from "../services/schedule.js";
 import { announceNewHelper } from "./auth.js";
@@ -106,7 +106,7 @@ export function workerRoutes(db: Db) {
   });
 
   // Profile photo (multipart field "file"). Needs admin approval once verified.
-  router.put("/photo", ...acceptFile("photos", IMAGE_TYPES), async (req, res) => {
+  router.put("/photo", ...acceptFile(db, "photos", IMAGE_TYPES), async (req, res) => {
     res.json(saved(await saveProfileChanges(db, me(req).id, { photoFile: req.file!.filename })));
   });
 
@@ -141,8 +141,8 @@ export function workerRoutes(db: Db) {
 
   // FR-04: upload a verification document (multipart: "docType", optional "docLabel", "file").
   // Uploading after a rejection sends the profile back for review.
-  router.post("/documents", ...acceptFile("documents", DOCUMENT_TYPES), async (req, res) => {
-    if (!documentSchema.safeParse(req.body).success) await removeUpload("documents", req.file!.filename);
+  router.post("/documents", ...acceptFile(db, "documents", DOCUMENT_TYPES), async (req, res) => {
+    if (!documentSchema.safeParse(req.body).success) await removeUpload(db, "documents", req.file!.filename);
     const input = parse(documentSchema, req.body);
     const id = me(req).id;
     const [doc] = await db.query(
@@ -168,7 +168,7 @@ export function workerRoutes(db: Db) {
       me(req).id,
     ]);
     if (!doc) throw notFound("Document");
-    res.type(doc.mime_type).sendFile(uploadPath("documents", doc.file_name), { dotfiles: "allow" });
+    await sendUpload(db, res, "documents", doc.file_name);
   });
 
   // Last onboarding step: checks the profile is complete and hands it to the admin for verification.

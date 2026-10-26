@@ -1,11 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { open, unlink } from "node:fs/promises";
-import path from "node:path";
-import type { RequestHandler } from "express";
+import type { RequestHandler, Response } from "express";
 import multer from "multer";
 import { config } from "../config.js";
-import { badRequest } from "./http.js";
+import type { Db } from "../db/db.js";
+import { badRequest, notFound } from "./http.js";
 
 export type UploadKind = "photos" | "documents";
 
@@ -19,20 +17,14 @@ const EXTENSIONS: Record<string, string> = {
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const DOCUMENT_TYPES = [...IMAGE_TYPES, "application/pdf"];
 
-export const uploadPath = (kind: UploadKind, fileName = "") => path.resolve(config.uploadDir, kind, fileName);
-
 /**
- * Accepts one file in the multipart field "file", saved under a random name.
+ * Accepts one file in the multipart field "file" and stores it in the database under a random
+ * name, given to the route as req.file.filename.
  * The browser-reported type is only a hint, so the file's first bytes are checked too.
  */
-export function acceptFile(kind: UploadKind, allowedTypes: string[]): RequestHandler[] {
-  mkdirSync(uploadPath(kind), { recursive: true });
-
+export function acceptFile(db: Db, kind: UploadKind, allowedTypes: string[]): RequestHandler[] {
   const receive = multer({
-    storage: multer.diskStorage({
-      destination: uploadPath(kind),
-      filename: (_req, file, done) => done(null, randomUUID() + EXTENSIONS[file.mimetype]),
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: config.maxUploadMb * 1024 * 1024, files: 1 },
     fileFilter: (_req, file, done) =>
       allowedTypes.includes(file.mimetype)
@@ -40,28 +32,39 @@ export function acceptFile(kind: UploadKind, allowedTypes: string[]): RequestHan
         : done(badRequest(`Only ${allowedTypes.map((t) => EXTENSIONS[t]).join(", ")} files are allowed`)),
   }).single("file");
 
-  const verify: RequestHandler = async (req, _res, next) => {
+  const store: RequestHandler = async (req, _res, next) => {
     if (!req.file) throw badRequest("Attach a file in the 'file' field");
-    if (!(await contentMatches(req.file.path, req.file.mimetype))) {
-      await unlink(req.file.path);
-      throw badRequest("The file's contents don't match its type");
-    }
+    if (!contentMatches(req.file.buffer, req.file.mimetype)) throw badRequest("The file's contents don't match its type");
+    req.file.filename = randomUUID() + EXTENSIONS[req.file.mimetype];
+    await db.query("INSERT INTO uploads (kind, file_name, mime_type, data) VALUES ($1, $2, $3, $4)", [
+      kind,
+      req.file.filename,
+      req.file.mimetype,
+      req.file.buffer,
+    ]);
     next();
   };
 
-  return [receive, verify];
+  return [receive, store];
 }
 
-export async function removeUpload(kind: UploadKind, fileName: string | null) {
-  if (fileName) await unlink(uploadPath(kind, fileName)).catch(() => {});
+export async function removeUpload(db: Db, kind: UploadKind, fileName: string | null) {
+  if (fileName) await db.query("DELETE FROM uploads WHERE kind = $1 AND file_name = $2", [kind, fileName]);
+}
+
+/** Responds with a stored file. Names are random and never reused, so browsers may cache it for good. */
+export async function sendUpload(db: Db, res: Response, kind: UploadKind, fileName: string) {
+  const [file] = await db.query("SELECT mime_type, data FROM uploads WHERE kind = $1 AND file_name = $2", [
+    kind,
+    fileName,
+  ]);
+  if (!file) throw notFound("File");
+  res.set("Cache-Control", "private, max-age=31536000, immutable");
+  res.type(file.mime_type).send(Buffer.from(file.data));
 }
 
 /** Checks the file's "magic number" against its declared type. */
-async function contentMatches(filePath: string, mimeType: string) {
-  const file = await open(filePath);
-  const { buffer } = await file.read(Buffer.alloc(12), 0, 12, 0);
-  await file.close();
-
+function contentMatches(buffer: Buffer, mimeType: string) {
   const starts = (...bytes: number[]) => bytes.every((b, i) => buffer[i] === b);
   switch (mimeType) {
     case "image/jpeg":

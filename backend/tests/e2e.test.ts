@@ -1,4 +1,3 @@
-import { rm } from "node:fs/promises";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
@@ -82,7 +81,6 @@ beforeAll(async () => {
 afterAll(async () => {
   vi.useRealTimers();
   await db.close();
-  await rm(config.uploadDir, { recursive: true, force: true });
 });
 
 describe("HelpHive end to end", () => {

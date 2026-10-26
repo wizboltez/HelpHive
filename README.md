@@ -17,7 +17,7 @@ HelpHive/
 - **Backend:** Node.js 22+, TypeScript, Express 5, REST API routes, raw SQL migrations, and shared service modules
 - **Validation and security:** Zod validation, JWT authentication, bcrypt password hashing, Helmet security headers, CORS, and express-rate-limit
 - **Database:** PostgreSQL in production or shared environments, with PGlite providing a local file-backed PostgreSQL database
-- **File handling:** Multer for profile photos and verification documents, stored locally under `backend/.data/uploads`
+- **File handling:** Multer for profile photos and verification documents, stored in the database (`uploads` table)
 - **Development and deployment:** Docker Compose for PostgreSQL, environment-based configuration, Vite API proxying, and Cloudflare Tunnel support for remote testing
 - **Testing and quality:** Vitest and Supertest for backend tests, TypeScript typechecking, ESLint, and Prettier
 
@@ -82,7 +82,7 @@ Each laptop runs its own copy with its **own, empty database**.
 ## Where the data lives
 
 Everything (accounts, bookings, attendance) is stored in a database **on the computer running the
-backend**: `backend/.data/pglite`. Uploaded photos and documents are in `backend/.data/uploads`.
+backend**: `backend/.data/pglite`. Uploaded photos and documents are stored in the database too.
 
 - Another laptop running its own copy starts with an **empty** database, so your logins won't
   work there.
