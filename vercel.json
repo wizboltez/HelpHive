@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "frontend/",
+      "framework": "tanstack-start"
+    },
+    "api": {
+      "root": "backend/",
+      "framework": "express",
+      "entrypoint": "api/index.ts",
+      "buildCommand": "npm run db:migrate"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/uploads/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}

@@ -32,3 +32,6 @@ Thumbs.db
 
 # Claude Code: personal settings stay local, shared launch config is fine
 .claude/settings.local.json
+
+# Vercel CLI build output and project link
+.vercel/
