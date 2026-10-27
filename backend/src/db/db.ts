@@ -24,7 +24,9 @@ export async function connectPostgres(url: string): Promise<Db> {
   const { default: pg } = await import("pg");
   pg.types.setTypeParser(DATE, (value) => value);
   pg.types.setTypeParser(INT8, Number);
-  const pool = new pg.Pool({ connectionString: url });
+  // With DATABASE_CA, connect over TLS and verify the server against that authority (leave sslmode out of the URL).
+  const ssl = config.databaseCa ? { ca: config.databaseCa } : undefined;
+  const pool = new pg.Pool({ connectionString: url, ssl });
 
   const inTransaction = (client: import("pg").PoolClient): Db => {
     const tx: Db = {

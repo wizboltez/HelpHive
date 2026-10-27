@@ -15,6 +15,8 @@ export const config = {
   port: Number(env.PORT ?? 4000),
   /** Set to use a real PostgreSQL server; otherwise an embedded PGlite database is used. */
   databaseUrl: env.DATABASE_URL,
+  /** PEM certificate of the database's own certificate authority (e.g. Supabase), so TLS can be verified. */
+  databaseCa: env.DATABASE_CA?.replace(/\\n/g, "\n"),
   pgliteDir: env.PGLITE_DIR ?? ".data/pglite",
   jwtSecret: env.JWT_SECRET ?? "dev-secret-change-me",
   tokenTtl: env.TOKEN_TTL ?? "7d",
